@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"io"
 	"net/http"
 	"net/textproto"
 	"net/url"
@@ -27,6 +28,10 @@ func HTTPHandler(handler http.Handler) func(events.APIGatewayV2HTTPRequest) (eve
 			RequestURI: ar.RequestContext.HTTP.Path,
 			Proto:      ar.RequestContext.HTTP.Protocol,
 			Header:     multiValueHeader(ar.Headers),
+		}
+
+		if ar.Body != "" {
+			r.Body = io.NopCloser(strings.NewReader(ar.Body))
 		}
 
 		var ok bool
