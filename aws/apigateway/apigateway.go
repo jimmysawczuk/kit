@@ -31,7 +31,7 @@ func HTTPHandler(handler http.Handler) func(events.APIGatewayV2HTTPRequest) (eve
 		}
 
 		if ar.Body != "" && ar.IsBase64Encoded {
-			r.Body = io.NopCloser(base64.NewDecoder(base64.RawStdEncoding, strings.NewReader(ar.Body)))
+			r.Body = io.NopCloser(base64.NewDecoder(base64.StdEncoding, strings.NewReader(ar.Body)))
 		} else if ar.Body != "" && !ar.IsBase64Encoded {
 			r.Body = io.NopCloser(strings.NewReader(ar.Body))
 		}
