@@ -30,7 +30,9 @@ func HTTPHandler(handler http.Handler) func(events.APIGatewayV2HTTPRequest) (eve
 			Header:     multiValueHeader(ar.Headers),
 		}
 
-		if ar.Body != "" {
+		if ar.Body != "" && ar.IsBase64Encoded {
+			r.Body = io.NopCloser(base64.NewDecoder(base64.RawStdEncoding, strings.NewReader(ar.Body)))
+		} else if ar.Body != "" && !ar.IsBase64Encoded {
 			r.Body = io.NopCloser(strings.NewReader(ar.Body))
 		}
 
