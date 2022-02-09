@@ -57,6 +57,13 @@ func (r Router) Delete(pattern string, handler Handler, rmws ...Middleware) {
 	r.r.MethodFunc(http.MethodDelete, pattern, HandlerFunc(handler, mws...))
 }
 
+// Mount attaches the provided http.Handler directly to the given pattern with the provided middlewares.
+// This is useful for serving static files or embedding other APIs directly.
+func (r Router) Mount(pattern string, handler Handler, rmws ...Middleware) {
+	mws := stackMiddleware(r.mws, rmws)
+	r.r.Mount(pattern, HandlerFunc(handler, mws...))
+}
+
 // URLParam wraps chi.URLParam.
 func URLParam(r *http.Request, key string) string {
 	return chi.URLParam(r, key)
