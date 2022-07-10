@@ -52,6 +52,10 @@ func HTTPHandler(handler http.Handler) func(events.APIGatewayV2HTTPRequest) (eve
 
 		handler.ServeHTTP(w, r)
 
+		if w.statusCode == 0 {
+			w.statusCode = http.StatusOK
+		}
+
 		resp := events.APIGatewayV2HTTPResponse{
 			StatusCode: w.statusCode,
 			Headers:    singleValueHeader(w.header),
