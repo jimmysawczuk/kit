@@ -6,8 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 type ShutdownFunc func() error
@@ -27,14 +26,15 @@ type Shutdowner interface {
 }
 
 // Shutdown gracefully shuts down an HTTP server and app.
-func Shutdown(log logrus.FieldLogger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration, shutdowners ...Shutdowner) {
+func Shutdown(log *slog.Logger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration, shutdowners ...Shutdowner) {
 	// We're waiting for either of these signals to fire before exiting, but the behavior
 	// is exactly the same afterwards.
 	select {
 	case v := <-sig:
-		log.Infof("signal received: %s", v)
+
+		log.Info("signal received: %s %T", v, v)
 	case <-stopped:
-		log.Infof("stop signal received")
+		log.Info("stop signal received")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -45,16 +45,15 @@ func Shutdown(log logrus.FieldLogger, sig chan os.Signal, stopped chan bool, don
 
 	for _, v := range shutdowners {
 		go func(ctx context.Context, s Shutdowner) {
-
 			switch fn := s.(type) {
 			case ShutdownCtxFunc:
 				if err := fn(ctx); err != nil {
-					log.Println(errors.Wrapf(err, "shutdown %T", s))
+					log.With("error", err).Info("shutdown %T", s)
 				}
 
 			case ShutdownFunc:
 				if err := fn(); err != nil {
-					log.Println(errors.Wrapf(err, "shutdown %T", s))
+					log.With("error", err).Info("shutdown %T", s)
 				}
 			}
 

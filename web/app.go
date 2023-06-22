@@ -7,20 +7,20 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/jimmysawczuk/kit/web/respond"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 // App holds a Router for endpoints as well as a contextual logger.
 type App struct {
 	r   Router
-	log *logrus.Logger
+	log *slog.Logger
 	sd  []Shutdowner
 
 	healthChecks []func() error
 }
 
 // NewApp instanciates a new App, with the provided logger and global middleware.
-func NewApp(log *logrus.Logger, mws ...Middleware) *App {
+func NewApp(log *slog.Logger, mws ...Middleware) *App {
 	a := &App{
 		log: log,
 	}
@@ -36,10 +36,9 @@ func NewApp(log *logrus.Logger, mws ...Middleware) *App {
 // Bootstrap is middleware that initializes a new context.Context from the request context, and creates a new log
 // entry for passing through the request. It should be the *first* middleware invoked.
 func (a *App) Bootstrap(h Handler) Handler {
-	return func(_ context.Context, _ logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+	return func(_ context.Context, _ *slog.Logger, w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		entry := logrus.NewEntry(a.log)
-
+		entry := a.log.With()
 		h(ctx, entry, w, r)
 	}
 }
@@ -77,7 +76,7 @@ func (a *App) RouteModule(m Module, mws ...Middleware) {
 }
 
 // Health is a Handler checks the health of the App, emitting a 503 if not healthy.
-func (a *App) Health(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+func (a *App) Health(ctx context.Context, log *slog.Logger, w http.ResponseWriter, r *http.Request) {
 	if err := a.checkHealth(); err != nil {
 		respond.WithError(ctx, log, w, r, http.StatusServiceUnavailable, errors.New("not healthy"))
 		return

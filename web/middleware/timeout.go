@@ -10,7 +10,7 @@ import (
 	"github.com/jimmysawczuk/kit/web"
 	"github.com/jimmysawczuk/kit/web/respond"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 // WithDefaultTimeout wraps WithTimeout with a timeout of 15 seconds.
@@ -21,7 +21,7 @@ var WithDefaultTimeout = WithTimeout(15 * time.Second)
 // additional output.
 func WithTimeout(timeout time.Duration) func(web.Handler) web.Handler {
 	return func(h web.Handler) web.Handler {
-		return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+		return func(ctx context.Context, log *slog.Logger, w http.ResponseWriter, r *http.Request) {
 			// http.ResponseWriters don't like when we try to read/write from the header, or call Write after
 			// the connection closes, so we'll wrap our actual writer with something that can swallow any writes
 			// that are made after the timeout writer interrupts.
@@ -35,7 +35,7 @@ func WithTimeout(timeout time.Duration) func(web.Handler) web.Handler {
 				defer func() {
 					if p := recover(); p != nil {
 						err := errors.Errorf("panic: %v", p)
-						log.WithError(err).WithField("mw", "WithTimeout").Error("recovered from panic")
+						log.With("error", err).With("mw", "WithTimeout").Error("recovered from panic")
 						rdebug.PrintStack()
 						panicCh <- err
 					}

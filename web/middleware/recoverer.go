@@ -8,16 +8,16 @@ import (
 	"github.com/jimmysawczuk/kit/web"
 	"github.com/jimmysawczuk/kit/web/respond"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 // Recoverer catches any panics that the wrapped Handler might cause.
 func Recoverer(h web.Handler) web.Handler {
-	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+	return func(ctx context.Context, log *slog.Logger, w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if p := recover(); p != nil {
 				err := errors.Errorf("panic: %v", p)
-				log.WithError(err).WithField("mw", "Recoverer").Error("recovered from panic")
+				log.With("error", err).With("mw", "Recoverer").Error("recovered from panic")
 				rdebug.PrintStack()
 				respond.WithError(ctx, log, w, r, http.StatusInternalServerError, err)
 			}
