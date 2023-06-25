@@ -6,17 +6,17 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type Table struct {
 	conn *dynamodb.DynamoDB
-	log  logrus.FieldLogger
+	log  *zap.Logger
 
 	Name string
 }
 
-func New(conn *dynamodb.DynamoDB, name string, log logrus.FieldLogger) *Table {
+func New(conn *dynamodb.DynamoDB, name string, log *zap.Logger) *Table {
 	return &Table{
 		conn: conn,
 		log:  log,
@@ -28,15 +28,16 @@ func (t *Table) Conn() *dynamodb.DynamoDB {
 	return t.conn
 }
 
-func debug(log logrus.FieldLogger, name string, in any) {
+func debug(log *zap.Logger, name string, in any) {
 	if log != nil {
 		_, file, line, _ := runtime.Caller(3)
-		log.WithFields(logrus.Fields{
-			"table": name,
-			"file":  file,
-			"line":  line,
-			// "in": in,
-		}).Debug(name)
+
+		log.With(
+			zap.String("table", name),
+			zap.String("file", file),
+			zap.Int("line", line),
+			// zap.Any("in", in),
+		).Debug(name)
 	}
 }
 

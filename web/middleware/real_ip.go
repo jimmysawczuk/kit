@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/jimmysawczuk/kit/web"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 var (
@@ -35,7 +35,7 @@ var (
 // proxy, malicious clients will be able to make you very sad (or, depending on
 // how you're using RemoteAddr, vulnerable to an attack of some sort).
 func RealIP(h web.Handler) web.Handler {
-	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+	return func(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request) {
 		if rip := realIP(r); rip != "" {
 			r.RemoteAddr = rip
 		}

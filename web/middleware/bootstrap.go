@@ -5,15 +5,16 @@ import (
 	"net/http"
 
 	"github.com/jimmysawczuk/kit/web"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // Bootstrap creates an initial context and log entry, and is therefore the first middleware that should be applied.
 // You may choose to use your own app-specific Bootstrap implementation to attach a custom logger or context.
 func Bootstrap(h web.Handler) web.Handler {
-	return func(_ context.Context, _ logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+	return func(_ context.Context, _ *zap.Logger, w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		entry := logrus.NewEntry(logrus.StandardLogger())
+
+		entry := zap.L()
 
 		h(ctx, entry, w, r)
 	}

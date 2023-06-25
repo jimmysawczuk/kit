@@ -7,7 +7,7 @@ import (
 
 	"github.com/jimmysawczuk/kit/web/requestid"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type errResponse struct {
@@ -54,13 +54,13 @@ type Responder struct {
 var DefaultResponder = Responder{}
 
 // WithError is a shortcut for WithCodedError(ctx, log, w, httpStatus, "", err).
-func (re Responder) WithError(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request, httpStatus int, err error) {
+func (re Responder) WithError(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request, httpStatus int, err error) {
 	re.WithCodedError(ctx, log, w, r, httpStatus, "", err)
 }
 
 // WithCodedError writes the provided error to the ResponseWriter, as well as the HTTP status code.
 // An enum-style code (i.e. INVALID_TOKEN) may also be provided.
-func (re Responder) WithCodedError(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request, httpStatus int, code string, err error) {
+func (re Responder) WithCodedError(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request, httpStatus int, code string, err error) {
 	serr := http.StatusText(httpStatus)
 	if err != nil {
 		serr = err.Error()
@@ -88,9 +88,9 @@ func (re Responder) WithCodedError(ctx context.Context, log logrus.FieldLogger, 
 	}
 
 	if re.SuppressErrors {
-		msg := log.WithError(err).WithField("statusCode", httpStatus)
+		msg := log.With(zap.Error(err), zap.Int("statusCode", httpStatus))
 		if resp.Info != nil {
-			msg = msg.WithField("info", resp.Info)
+			msg = msg.With(zap.Any("info", resp.Info))
 		}
 
 		resp.Error = ""
@@ -102,7 +102,7 @@ func (re Responder) WithCodedError(ctx context.Context, log logrus.FieldLogger, 
 }
 
 // WithSuccess writes the provided response to the ResponseWriter (unwrapped) and sets the provided HTTP response status.
-func (re Responder) WithSuccess(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request, httpStatus int, v interface{}) {
+func (re Responder) WithSuccess(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request, httpStatus int, v interface{}) {
 	if ct := w.Header().Get("Content-Type"); ct == "" {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	}
@@ -117,16 +117,16 @@ func (re Responder) WithSuccess(ctx context.Context, log logrus.FieldLogger, w h
 }
 
 // WithError is a shortcut for DefaultResponder.WithError.
-func WithError(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request, httpStatus int, err error) {
+func WithError(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request, httpStatus int, err error) {
 	DefaultResponder.WithError(ctx, log, w, r, httpStatus, err)
 }
 
 // WithCodedError is a shortcut for DefaultResponder.WithCodedError.
-func WithCodedError(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request, httpStatus int, code string, err error) {
+func WithCodedError(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request, httpStatus int, code string, err error) {
 	DefaultResponder.WithCodedError(ctx, log, w, r, httpStatus, code, err)
 }
 
 // WithSuccess is a shortcut for DefaultResponder.WithSuccess.
-func WithSuccess(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request, httpStatus int, v interface{}) {
+func WithSuccess(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request, httpStatus int, v interface{}) {
 	DefaultResponder.WithSuccess(ctx, log, w, r, httpStatus, v)
 }

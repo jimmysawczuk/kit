@@ -17,7 +17,7 @@ import (
 	"sync"
 
 	"github.com/jimmysawczuk/kit/web"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 var defaultCompressibleContentTypes = []string{
@@ -143,14 +143,14 @@ func NewCompressor(level int, types ...string) *Compressor {
 //
 // For example, add the Brotli algortithm:
 //
-//  import brotli_enc "gopkg.in/kothar/brotli-go.v0/enc"
+//	import brotli_enc "gopkg.in/kothar/brotli-go.v0/enc"
 //
-//  compressor := middleware.NewCompressor(5, "text/html")
-//  compressor.SetEncoder("br", func(w http.ResponseWriter, level int) io.Writer {
-//    params := brotli_enc.NewBrotliParams()
-//    params.SetQuality(level)
-//    return brotli_enc.NewBrotliWriter(params, w)
-//  })
+//	compressor := middleware.NewCompressor(5, "text/html")
+//	compressor.SetEncoder("br", func(w http.ResponseWriter, level int) io.Writer {
+//	  params := brotli_enc.NewBrotliParams()
+//	  params.SetQuality(level)
+//	  return brotli_enc.NewBrotliWriter(params, w)
+//	})
 func (c *Compressor) SetEncoder(encoding string, fn EncoderFunc) {
 	encoding = strings.ToLower(encoding)
 	if encoding == "" {
@@ -198,7 +198,7 @@ func (c *Compressor) SetEncoder(encoding string, fn EncoderFunc) {
 // Handler returns a new middleware that will compress the response based on the
 // current Compressor.
 func (c *Compressor) Handler(next web.Handler) web.Handler {
-	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+	return func(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request) {
 		encoder, encoding, cleanup := c.selectEncoder(r.Header, w)
 
 		cw := &compressResponseWriter{

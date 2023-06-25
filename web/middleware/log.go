@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jimmysawczuk/kit/web"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type loggableResponseWriter struct {
@@ -20,26 +20,29 @@ type loggableResponseWriter struct {
 
 // LogRequest adds logging about how long the request took to execute.
 func LogRequest(h web.Handler) web.Handler {
-	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+	return func(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request) {
 		lrw := &loggableResponseWriter{
 			ResponseWriter: w,
 			start:          time.Now(),
 			statusCode:     http.StatusOK, // default this to 200, because that's what the stdlib does
 		}
 
-		log = log.WithField("started", lrw.start)
-		log = log.WithField("path", r.URL.Path)
+		log = log.With(
+			zap.Time("started", lrw.start),
+			zap.String("path", r.URL.Path),
+		)
+
 		ctx = context.WithValue(ctx, StartTimeKey, lrw.start)
 
 		log.Info("request: started")
 		h(ctx, log, lrw, r)
-		log.WithFields(logrus.Fields{
-			"dur":          time.Now().Sub(lrw.start),
-			"bytesWritten": lrw.bytesWritten,
-			"status":       lrw.statusCode,
-			"statusText":   http.StatusText(lrw.statusCode),
-			"contentType":  lrw.contentType,
-		}).Info("request: finished")
+		log.With(
+			zap.Duration("dur", time.Now().Sub(lrw.start)),
+			zap.Int("bytesWritten", lrw.bytesWritten),
+			zap.Int("status", lrw.statusCode),
+			zap.String("statusText", http.StatusText(lrw.statusCode)),
+			zap.String("contentType", lrw.contentType),
+		).Info("request: finished")
 	}
 }
 

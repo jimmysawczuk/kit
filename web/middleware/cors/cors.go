@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/jimmysawczuk/kit/web"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // Options is a configuration container to setup the CORS middleware.
@@ -196,7 +196,7 @@ func AllowAll() *Cors {
 // Handler apply the CORS specification on the request, and add relevant CORS headers
 // as necessary.
 func (c *Cors) Handler(next web.Handler) web.Handler {
-	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+	return func(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
 			c.logf("Handler: Preflight request")
 			c.handlePreflight(w, r)

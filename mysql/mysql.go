@@ -15,7 +15,7 @@ import (
 	"github.com/jimmysawczuk/try"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type silentLogger struct{}
@@ -62,7 +62,7 @@ func (m *DBMux) DB() *sqlx.DB {
 //
 // db, _ := mysql.Open(cfg)
 // go mysql.Refresh(log, cfg, 10 * time.Minute, db)
-func (m *DBMux) Refresh(log logrus.FieldLogger, c Config, dur time.Duration) {
+func (m *DBMux) Refresh(log *zap.Logger, c Config, dur time.Duration) {
 	// If we're not actually in IAM mode, we don't need to do this.
 	if !c.IAMAuth {
 		return
@@ -84,7 +84,7 @@ func (m *DBMux) Refresh(log logrus.FieldLogger, c Config, dur time.Duration) {
 			m.mux.Unlock()
 
 			if err := oldDB.Close(); err != nil {
-				log.WithError(err).Warn("couldn't close old DB connection")
+				log.With(zap.Error(err)).Warn("couldn't close old DB connection")
 			}
 		}
 	}
