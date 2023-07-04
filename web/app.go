@@ -2,11 +2,11 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/jimmysawczuk/kit/web/respond"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -80,7 +80,7 @@ func (a *App) RouteModule(m Module, mws ...Middleware) {
 // Health is a Handler checks the health of the App, emitting a 503 if not healthy.
 func (a *App) Health(ctx context.Context, log *zap.Logger, w http.ResponseWriter, r *http.Request) {
 	if err := a.checkHealth(); err != nil {
-		respond.WithError(ctx, log, w, r, http.StatusServiceUnavailable, errors.New("not healthy"))
+		respond.WithError(ctx, log, w, r, http.StatusServiceUnavailable, fmt.Errorf("not healthy"))
 		return
 	}
 

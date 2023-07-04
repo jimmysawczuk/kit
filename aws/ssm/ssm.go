@@ -2,13 +2,13 @@ package ssm
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/pkg/errors"
 )
 
 type Config struct {
@@ -23,7 +23,7 @@ type Param struct {
 func GetParametersFromPath(ctx context.Context, path string) ([]Param, error) {
 	sess, err := session.NewSession()
 	if err != nil {
-		return nil, errors.Wrap(err, "session: new session")
+		return nil, fmt.Errorf("session: new session: %w", err)
 	}
 
 	ssmClient := ssm.New(sess)
@@ -38,7 +38,7 @@ func GetParametersFromPath(ctx context.Context, path string) ([]Param, error) {
 			WithDecryption: aws.Bool(true),
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "ssm: get parameters by path")
+			return nil, fmt.Errorf("ssm: get parameters by path: %w", err)
 		}
 
 		params = append(params, res.Parameters...)
@@ -64,7 +64,7 @@ func GetParametersFromPath(ctx context.Context, path string) ([]Param, error) {
 func LoadIntoEnv(in []Param) error {
 	for _, v := range in {
 		if err := os.Setenv(v.Name, v.Value); err != nil {
-			return errors.Wrap(err, "os: setenv")
+			return fmt.Errorf("os: setenv: %w", err)
 		}
 	}
 

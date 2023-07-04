@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"net/textproto"
@@ -11,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/pkg/errors"
 )
 
 // HTTPHandler shims an http.Handler into a API Gateway V2 request/response workflow.
@@ -39,13 +39,13 @@ func HTTPHandler(handler http.Handler) func(events.APIGatewayV2HTTPRequest) (eve
 		var ok bool
 		r.ProtoMajor, r.ProtoMinor, ok = http.ParseHTTPVersion(r.Proto)
 		if !ok {
-			return events.APIGatewayV2HTTPResponse{}, errors.Errorf("http: parse http version: couldn't parse version %s", r.Proto)
+			return events.APIGatewayV2HTTPResponse{}, fmt.Errorf("http: parse http version: couldn't parse version %s", r.Proto)
 		}
 
 		var err error
 		r.URL, err = url.ParseRequestURI(r.RequestURI)
 		if err != nil {
-			return events.APIGatewayV2HTTPResponse{}, errors.Wrap(err, "url: parse request uri")
+			return events.APIGatewayV2HTTPResponse{}, fmt.Errorf("url: parse request uri: %w", err)
 		}
 
 		r = r.WithContext(context.Background())

@@ -14,7 +14,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jimmysawczuk/try"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -74,7 +73,7 @@ func (m *DBMux) Refresh(log *zap.Logger, c Config, dur time.Duration) {
 			oldDB := new(sqlx.DB)
 			newDB, err := Open(c)
 			if err != nil {
-				panic(errors.Wrap(err, "mysql: open"))
+				panic(fmt.Errorf("mysql: open: %w", err))
 			}
 
 			log.Info("replacing db connection")
@@ -96,12 +95,12 @@ func Open(c Config) (*sqlx.DB, error) {
 	if c.IAMAuth {
 		sess, err := session.NewSession()
 		if err != nil {
-			return nil, errors.Wrap(err, "aws: session: new session")
+			return nil, fmt.Errorf("aws: session: new session: %w", err)
 		}
 
 		token, err := rdsutils.BuildAuthToken(fmt.Sprintf("%s:%d", c.Host, c.Port), *sess.Config.Region, c.User, sess.Config.Credentials)
 		if err != nil {
-			return nil, errors.Wrap(err, "aws: rdsutils: build auth token")
+			return nil, fmt.Errorf("aws: rdsutils: build auth token: %w", err)
 		}
 
 		c.Password = token
@@ -110,18 +109,18 @@ func Open(c Config) (*sqlx.DB, error) {
 	if c.CACertPath != "" {
 		pem, err := ioutil.ReadFile(c.CACertPath)
 		if err != nil {
-			return nil, errors.Errorf("couldn't read ca cert file (path: %s)", c.CACertPath)
+			return nil, fmt.Errorf("couldn't read ca cert file (path: %s)", c.CACertPath)
 		}
 
 		certPool := x509.NewCertPool()
 		if ok := certPool.AppendCertsFromPEM(pem); !ok {
-			return nil, errors.Errorf("can't decode pem file (file: %s)", c.CACertPath)
+			return nil, fmt.Errorf("can't decode pem file (file: %s)", c.CACertPath)
 		}
 
 		if err := mysql.RegisterTLSConfig(c.TLS, &tls.Config{
 			RootCAs: certPool,
 		}); err != nil {
-			return nil, errors.Wrap(err, "mysql: register tls config")
+			return nil, fmt.Errorf("mysql: register tls config: %w", err)
 		}
 	}
 
@@ -146,7 +145,7 @@ func Open(c Config) (*sqlx.DB, error) {
 
 	db, err := sqlx.Open("mysql", cfg.FormatDSN())
 	if err != nil {
-		return nil, errors.Wrap(err, "open")
+		return nil, fmt.Errorf("open: %w", err)
 	}
 
 	db.SetMaxOpenConns(10)
@@ -157,7 +156,7 @@ func Open(c Config) (*sqlx.DB, error) {
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		return nil, errors.Wrap(err, "ping")
+		return nil, fmt.Errorf("ping: %w", err)
 	}
 
 	return db, nil
@@ -170,14 +169,14 @@ func Try(c Config, dur, interval time.Duration) (*sqlx.DB, error) {
 	err := try.Try(func() error {
 		d, err := Open(c)
 		if err != nil {
-			return errors.Wrap(err, "mysql: open")
+			return fmt.Errorf("mysql: open: %w", err)
 		}
 
 		db = d
 		return nil
 	}, dur, interval)
 	if err != nil {
-		return nil, errors.Wrap(err, "try")
+		return nil, fmt.Errorf("try: %w", err)
 	}
 
 	return db, nil

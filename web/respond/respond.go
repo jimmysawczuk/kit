@@ -3,10 +3,10 @@ package respond
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/jimmysawczuk/kit/web/requestid"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -83,7 +83,8 @@ func (re Responder) WithCodedError(ctx context.Context, log *zap.Logger, w http.
 		ErrorCode: code,
 	}
 
-	if ty, ok := errors.Cause(err).(ErrorInfoer); ok {
+	var ty ErrorInfoer
+	if ok := errors.As(err, &ty); ok {
 		resp.Info = ty.ErrorInfo()
 	}
 
