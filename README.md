@@ -15,6 +15,5 @@
 Kit would not exist without several open source packages:
 
 - [Chi](https://github.com/go-chi/chi) provides the underlying router for the `web` package as well as several of the middlewares.
-- [github.com/pkg/errors](https://github.com/pkg/errors) is used for wrapping errors.
 - [github.com/jmoiron/sqlx](https://github.com/jmoiron/sqlx) provides some nice-to-have API functions for SQL-based databases.
 - [github.com/stretchr/testify](https://github.com/stretchr/testify) is used for testing.
