@@ -1,6 +1,6 @@
 module github.com/jimmysawczuk/kit
 
-go 1.18
+go 1.23
 
 require (
 	github.com/aws/aws-lambda-go v1.35.0
