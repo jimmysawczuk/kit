@@ -1,11 +1,11 @@
 package dtable
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -93,7 +93,7 @@ func (t *Table) BatchGetItem(ctx aws.Context, in *BatchGetItemInput) (*BatchGetI
 
 	dout, err := t.conn.BatchGetItemWithContext(ctx, &din)
 	if err != nil {
-		return nil, errors.Wrap(err, "batch get item with context")
+		return nil, fmt.Errorf("batch get item with context: %w", err)
 	}
 
 	return &BatchGetItemOutput{

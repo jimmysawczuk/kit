@@ -2,11 +2,11 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,12 +49,12 @@ func Shutdown(log logrus.FieldLogger, sig chan os.Signal, stopped chan bool, don
 			switch fn := s.(type) {
 			case ShutdownCtxFunc:
 				if err := fn(ctx); err != nil {
-					log.Println(errors.Wrapf(err, "shutdown %T", s))
+					log.Println(fmt.Errorf("shutdown %T: %w", fn, err))
 				}
 
 			case ShutdownFunc:
 				if err := fn(); err != nil {
-					log.Println(errors.Wrapf(err, "shutdown %T", s))
+					log.Println(fmt.Errorf("shutdown %T: %w", fn, err))
 				}
 			}
 

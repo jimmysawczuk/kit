@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
@@ -143,14 +142,14 @@ func NewCompressor(level int, types ...string) *Compressor {
 //
 // For example, add the Brotli algortithm:
 //
-//  import brotli_enc "gopkg.in/kothar/brotli-go.v0/enc"
+//	import brotli_enc "gopkg.in/kothar/brotli-go.v0/enc"
 //
-//  compressor := middleware.NewCompressor(5, "text/html")
-//  compressor.SetEncoder("br", func(w http.ResponseWriter, level int) io.Writer {
-//    params := brotli_enc.NewBrotliParams()
-//    params.SetQuality(level)
-//    return brotli_enc.NewBrotliWriter(params, w)
-//  })
+//	compressor := middleware.NewCompressor(5, "text/html")
+//	compressor.SetEncoder("br", func(w http.ResponseWriter, level int) io.Writer {
+//	  params := brotli_enc.NewBrotliParams()
+//	  params.SetQuality(level)
+//	  return brotli_enc.NewBrotliWriter(params, w)
+//	})
 func (c *Compressor) SetEncoder(encoding string, fn EncoderFunc) {
 	encoding = strings.ToLower(encoding)
 	if encoding == "" {
@@ -170,12 +169,12 @@ func (c *Compressor) SetEncoder(encoding string, fn EncoderFunc) {
 	}
 
 	// If the encoder supports Resetting (IoReseterWriter), then it can be pooled.
-	encoder := fn(ioutil.Discard, c.level)
+	encoder := fn(io.Discard, c.level)
 	if encoder != nil {
 		if _, ok := encoder.(ioResetterWriter); ok {
 			pool := &sync.Pool{
 				New: func() interface{} {
-					return fn(ioutil.Discard, c.level)
+					return fn(io.Discard, c.level)
 				},
 			}
 			c.pooledEncoders[encoding] = pool

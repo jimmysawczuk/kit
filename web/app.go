@@ -2,11 +2,11 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/jimmysawczuk/kit/web/respond"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 

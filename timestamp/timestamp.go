@@ -3,9 +3,8 @@ package timestamp
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // Timestamp wraps a time.Time in a struct with a Valid bool so we can safely handle NULL values.
@@ -41,7 +40,7 @@ func Now() Timestamp {
 func Parse(layout string, val string) (Timestamp, error) {
 	t, err := time.Parse(layout, val)
 	if err != nil {
-		return Timestamp{}, errors.Wrap(err, "parse")
+		return Timestamp{}, fmt.Errorf("parse: %w", err)
 	}
 
 	return New(t), nil
@@ -52,7 +51,7 @@ func Parse(layout string, val string) (Timestamp, error) {
 func ParseInLocation(layout string, val string, loc *time.Location) (Timestamp, error) {
 	t, err := time.ParseInLocation(layout, val, loc)
 	if err != nil {
-		return Timestamp{}, errors.Wrap(err, "parse in location")
+		return Timestamp{}, fmt.Errorf("parse in location: %w", err)
 	}
 
 	return New(t), nil
@@ -145,7 +144,7 @@ func (t *Timestamp) Scan(in interface{}) error {
 		return nil
 	}
 
-	return errors.Errorf("invalid format: %T", in)
+	return fmt.Errorf("invalid format: %T", in)
 }
 
 // String implements fmt.Stringer.

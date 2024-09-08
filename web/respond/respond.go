@@ -3,10 +3,10 @@ package respond
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/jimmysawczuk/kit/web/requestid"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -83,8 +83,9 @@ func (re Responder) WithCodedError(ctx context.Context, log logrus.FieldLogger, 
 		ErrorCode: code,
 	}
 
-	if ty, ok := errors.Cause(err).(ErrorInfoer); ok {
-		resp.Info = ty.ErrorInfo()
+	var ei ErrorInfoer
+	if errors.As(err, &ei) {
+		resp.Info = ei.ErrorInfo()
 	}
 
 	if re.SuppressErrors {

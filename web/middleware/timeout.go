@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	rdebug "runtime/debug"
 	"sync"
@@ -9,7 +11,6 @@ import (
 
 	"github.com/jimmysawczuk/kit/web"
 	"github.com/jimmysawczuk/kit/web/respond"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,7 +35,7 @@ func WithTimeout(timeout time.Duration) func(web.Handler) web.Handler {
 				// write an Internal Server Error to the ResponseWriter.
 				defer func() {
 					if p := recover(); p != nil {
-						err := errors.Errorf("panic: %v", p)
+						err := fmt.Errorf("panic: %v", p)
 						log.WithError(err).WithField("mw", "WithTimeout").Error("recovered from panic")
 						rdebug.PrintStack()
 						panicCh <- err
@@ -52,7 +53,7 @@ func WithTimeout(timeout time.Duration) func(web.Handler) web.Handler {
 				tw.mx.Unlock()
 			case <-time.After(timeout):
 				tw.mx.Lock()
-				respond.WithError(ctx, log, tw, r, http.StatusGatewayTimeout, errors.Errorf("timed out after %s", timeout))
+				respond.WithError(ctx, log, tw, r, http.StatusGatewayTimeout, fmt.Errorf("timed out after %s", timeout))
 				tw.done = true
 				tw.mx.Unlock()
 			case perr := <-panicCh:
@@ -98,7 +99,7 @@ func (tw *timeoutWriter) WriteHeader(status int) {
 // Otherwise, this returns an error saying the time for writing has passed.
 func (tw *timeoutWriter) Write(b []byte) (int, error) {
 	if tw.done {
-		return 0, errors.New("responsewriter already written")
+		return 0, errors.New("ResponseWriter already written")
 	}
 
 	return tw.ResponseWriter.Write(b)
