@@ -1,6 +1,6 @@
 # kit
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/jimmysawczuk/kit.svg)](https://pkg.go.dev/github.com/jimmysawczuk/kit) [![Go Report Card](https://goreportcard.com/badge/github.com/jimmysawczuk/kit)](https://goreportcard.com/report/github.com/jimmysawczuk/kit)
+[![CI](https://github.com/jimmysawczuk/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/jimmysawczuk/kit/actions/workflows/ci.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/jimmysawczuk/kit.svg)](https://pkg.go.dev/github.com/jimmysawczuk/kit) [![Go Report Card](https://goreportcard.com/badge/github.com/jimmysawczuk/kit)](https://goreportcard.com/report/github.com/jimmysawczuk/kit)
 
 **Kit** is a collection of packages that I use to build Go services and programs. A few of the design goals (determining whether kit meets these goals is an exercise for the reader):
 
