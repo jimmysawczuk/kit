@@ -26,9 +26,8 @@ func DefaultLogFields(h web.Handler) web.Handler {
 		rctx := chi.RouteContext(ctx)
 
 		log = log.WithFields(logrus.Fields{
-			"@requestID": ctx.Value(RequestIDKey).(string),
-			"method":     r.Method,
-			"url":        r.URL.String(),
+			"method": r.Method,
+			"url":    r.URL.String(),
 			"route": map[string]interface{}{
 				"method": rctx.RouteMethod,
 				"path":   rctx.RoutePattern(),

@@ -13,7 +13,9 @@ import (
 // sets it on the context.
 func RequestID(h web.Handler) web.Handler {
 	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
-		ctx = requestid.Set(ctx, requestid.Next(r))
+		id := requestid.Next(r)
+		ctx = requestid.Set(ctx, id)
+		log = log.WithField("@id", id)
 		h(ctx, log, w, r.WithContext(ctx))
 	}
 }
