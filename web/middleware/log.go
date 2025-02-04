@@ -18,8 +18,9 @@ type loggableResponseWriter struct {
 	bytesWritten int
 }
 
-// LogRequest adds logging about how long the request took to execute.
-func LogRequest(h web.Handler) web.Handler {
+// InspectRequest adds logging about how long the request took to execute, the amount of bytes written and the
+// content type.
+func InspectRequest(h web.Handler) web.Handler {
 	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
 		lrw := &loggableResponseWriter{
 			ResponseWriter: w,
@@ -29,12 +30,12 @@ func LogRequest(h web.Handler) web.Handler {
 
 		log = log.WithField("started", lrw.start)
 		log = log.WithField("path", r.URL.Path)
-		ctx = context.WithValue(ctx, StartTimeKey, lrw.start)
 
 		log.Info("request: started")
 		h(ctx, log, lrw, r)
 		log.WithFields(logrus.Fields{
-			"dur":          time.Now().Sub(lrw.start),
+			"dur":          time.Since(lrw.start).String(),
+			"ns":           time.Since(lrw.start),
 			"bytesWritten": lrw.bytesWritten,
 			"status":       lrw.statusCode,
 			"statusText":   http.StatusText(lrw.statusCode),

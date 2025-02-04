@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/jimmysawczuk/kit/web/respond"
 	"github.com/sirupsen/logrus"
 )
