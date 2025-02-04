@@ -1,12 +1,10 @@
 package middleware
 
-// Ported from https://github.com/go-chi/chi/blob/v1.5.4/middleware/realip.go.
-//
-// Ported from Goji's middleware, source:
-// https://github.com/zenazn/goji/tree/master/web/middleware
+// This file is largely ported from https://raw.githubusercontent.com/go-chi/chi/refs/tags/v5.2.1/middleware/realip.go and adapted to fit the web.Handler signature.
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"strings"
 
@@ -15,20 +13,21 @@ import (
 )
 
 var (
+	trueClientIP  = http.CanonicalHeaderKey("True-Client-IP")
 	xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
 	xRealIP       = http.CanonicalHeaderKey("X-Real-IP")
 )
 
 // RealIP is a middleware that sets a http.Request's RemoteAddr to the results
-// of parsing either the X-Real-IP header or the X-Forwarded-For header (in that
-// order).
+// of parsing either the True-Client-IP, X-Real-IP or the X-Forwarded-For headers
+// (in that order).
 //
 // This middleware should be inserted fairly early in the middleware stack to
 // ensure that subsequent layers (e.g., request loggers) which examine the
 // RemoteAddr will see the intended value.
 //
 // You should only use this middleware if you can trust the headers passed to
-// you (in particular, the two headers this middleware uses), for example
+// you (in particular, the three headers this middleware uses), for example
 // because you have placed a reverse proxy like HAProxy or nginx in front of
 // chi. If your reverse proxies are configured to pass along arbitrary header
 // values from the client, or if you use this middleware without a reverse
@@ -38,24 +37,29 @@ func RealIP(h web.Handler) web.Handler {
 	return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
 		if rip := realIP(r); rip != "" {
 			r.RemoteAddr = rip
+			ctx = context.WithValue(ctx, ipAddressKey, rip)
 		}
 
-		h(ctx, log, w, r)
+		h(ctx, log, w, r.WithContext(ctx))
 	}
 }
 
 func realIP(r *http.Request) string {
 	var ip string
 
-	if xrip := r.Header.Get(xRealIP); xrip != "" {
+	if tcip := r.Header.Get(trueClientIP); tcip != "" {
+		ip = tcip
+	} else if xrip := r.Header.Get(xRealIP); xrip != "" {
 		ip = xrip
 	} else if xff := r.Header.Get(xForwardedFor); xff != "" {
-		i := strings.Index(xff, ", ")
+		i := strings.Index(xff, ",")
 		if i == -1 {
 			i = len(xff)
 		}
 		ip = xff[:i]
 	}
-
+	if ip == "" || net.ParseIP(ip) == nil {
+		return ""
+	}
 	return ip
 }
