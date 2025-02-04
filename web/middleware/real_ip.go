@@ -1,5 +1,7 @@
 package middleware
 
+// This file is largely ported from https://raw.githubusercontent.com/go-chi/chi/refs/tags/v5.2.1/middleware/realip.go and adapted to fit the web.Handler signature.
+
 import (
 	"context"
 	"net"
