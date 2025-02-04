@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
@@ -166,12 +165,12 @@ func (c *Compressor) SetEncoder(encoding string, fn EncoderFunc) {
 	delete(c.encoders, encoding)
 
 	// If the encoder supports Resetting (IoReseterWriter), then it can be pooled.
-	encoder := fn(ioutil.Discard, c.level)
+	encoder := fn(io.Discard, c.level)
 	if encoder != nil {
 		if _, ok := encoder.(ioResetterWriter); ok {
 			pool := &sync.Pool{
 				New: func() interface{} {
-					return fn(ioutil.Discard, c.level)
+					return fn(io.Discard, c.level)
 				},
 			}
 			c.pooledEncoders[encoding] = pool
