@@ -5,7 +5,7 @@ import (
 )
 
 // Middleware is a function that wraps an http.Handler with another.
-type Middleware func(http.Handler) http.Handler
+type Middleware = func(http.Handler) http.Handler
 
 // compose wraps the provided middlewares around each other in reverse order to consolidate them into
 // one middleware.
@@ -18,7 +18,8 @@ func compose(mws ...Middleware) Middleware {
 	}
 }
 
-func toSlice(mws ...[]Middleware) []Middleware {
+// collapse converts a slice of slices to a single slice of Middleware.
+func collapse(mws ...[]Middleware) []Middleware {
 	tbr := []Middleware{}
 	for _, m := range mws {
 		tbr = append(tbr, m...)
