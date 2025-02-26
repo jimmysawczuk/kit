@@ -2,12 +2,11 @@ package web
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 type ShutdownFunc func() error
@@ -27,14 +26,14 @@ type Shutdowner interface {
 }
 
 // Shutdown gracefully shuts down an HTTP server and app.
-func Shutdown(log logrus.FieldLogger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration, shutdowners ...Shutdowner) {
+func Shutdown(log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration, shutdowners ...Shutdowner) {
 	// We're waiting for either of these signals to fire before exiting, but the behavior
 	// is exactly the same afterwards.
 	select {
 	case v := <-sig:
-		log.Infof("signal received: %s", v)
+		log.Info().Msgf("signal received: %s", v)
 	case <-stopped:
-		log.Infof("stop signal received")
+		log.Info().Msgf("stop signal received")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -45,16 +44,15 @@ func Shutdown(log logrus.FieldLogger, sig chan os.Signal, stopped chan bool, don
 
 	for _, v := range shutdowners {
 		go func(ctx context.Context, s Shutdowner) {
-
 			switch fn := s.(type) {
 			case ShutdownCtxFunc:
 				if err := fn(ctx); err != nil {
-					log.Println(fmt.Errorf("shutdown %T: %w", fn, err))
+					log.Error().Err(err).Msgf("could not shutdown %T", fn)
 				}
 
 			case ShutdownFunc:
 				if err := fn(); err != nil {
-					log.Println(fmt.Errorf("shutdown %T: %w", fn, err))
+					log.Error().Err(err).Msgf("could not shutdown %T", fn)
 				}
 			}
 

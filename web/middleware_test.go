@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi"
-	"github.com/jimmysawczuk/kit/web/v2"
+	"github.com/jimmysawczuk/kit/web"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
@@ -48,19 +48,19 @@ func TestMiddlewareOrder(t *testing.T) {
 	router := chi.NewRouter()
 	router.Group(func(r chi.Router) {
 		r.Use(appendStr("A"), appendStr("B"), appendStr("C"))
-		r.Method(http.MethodGet, "/hello", web.HandlerFunc(middlewareResult))
+		r.Method(http.MethodGet, "/hello", web.Handler(middlewareResult))
 	})
 
 	log.Printf("%+v", router.Middlewares())
 
 	router.Group(func(r chi.Router) {
 		r.Use(appendStr("D"), appendStr("E"), appendStr("F"))
-		r.Method(http.MethodGet, "/world", web.HandlerFunc(middlewareResult))
+		r.Method(http.MethodGet, "/world", web.Handler(middlewareResult))
 
 		r.Group(func(r chi.Router) {
 			r.Use(appendStr("G"), appendStr("H"))
 
-			r.Method(http.MethodGet, "/world/v2", web.HandlerFunc(middlewareResult))
+			r.Method(http.MethodGet, "/world/v2", web.Handler(middlewareResult))
 		})
 	})
 
