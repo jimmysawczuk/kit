@@ -2,7 +2,6 @@ package web_test
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -45,26 +44,23 @@ func middlewareResult(ctx context.Context, l *zerolog.Logger, w http.ResponseWri
 }
 
 func TestMiddlewareOrder(t *testing.T) {
-	router := chi.NewRouter()
-	router.Group(func(r chi.Router) {
-		r.Use(appendStr("A"), appendStr("B"), appendStr("C"))
-		r.Method(http.MethodGet, "/hello", web.Handler(middlewareResult))
-	})
+	a := web.NewApp().Route(func(router chi.Router) {
+		router.Group(func(r chi.Router) {
+			r.Use(appendStr("A"), appendStr("B"), appendStr("C"))
+			r.Method(http.MethodGet, "/hello", web.Handler(middlewareResult))
+		})
 
-	log.Printf("%+v", router.Middlewares())
+		router.Group(func(r chi.Router) {
+			r.Use(appendStr("D"), appendStr("E"), appendStr("F"))
+			r.Method(http.MethodGet, "/world", web.Handler(middlewareResult))
 
-	router.Group(func(r chi.Router) {
-		r.Use(appendStr("D"), appendStr("E"), appendStr("F"))
-		r.Method(http.MethodGet, "/world", web.Handler(middlewareResult))
+			r.Group(func(r chi.Router) {
+				r.Use(appendStr("G"), appendStr("H"))
 
-		r.Group(func(r chi.Router) {
-			r.Use(appendStr("G"), appendStr("H"))
-
-			r.Method(http.MethodGet, "/world/v2", web.Handler(middlewareResult))
+				r.Method(http.MethodGet, "/world/v2", web.Handler(middlewareResult))
+			})
 		})
 	})
-
-	a := web.NewApp()
 
 	srv := httptest.NewServer(a)
 
