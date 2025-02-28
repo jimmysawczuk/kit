@@ -9,24 +9,19 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type ShutdownFunc func() error
-
-func (f ShutdownFunc) Shutdown() error {
-	return f()
+type Shutdowner interface {
+	Name() string
+	Shutdown(context.Context) error
 }
 
-func (f ShutdownFunc) sealed() {}
+type ShutdownerFunc func(context.Context) error
 
-type ShutdownCtxFunc func(context.Context) error
-
-func (f ShutdownCtxFunc) sealed() {}
-
-type Shutdowner interface {
-	sealed()
+func (s ShutdownerFunc) Shutdown(ctx context.Context) error {
+	return s(ctx)
 }
 
 // Shutdown gracefully shuts down an HTTP server and app.
-func Shutdown(log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration, shutdowners ...Shutdowner) {
+func (a *App) Shutdown(log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration) {
 	// We're waiting for either of these signals to fire before exiting, but the behavior
 	// is exactly the same afterwards.
 	select {
@@ -40,20 +35,16 @@ func Shutdown(log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done c
 	defer cancel()
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(shutdowners))
+	wg.Add(len(a.sd))
 
-	for _, v := range shutdowners {
+	for _, v := range a.sd {
 		go func(ctx context.Context, s Shutdowner) {
-			switch fn := s.(type) {
-			case ShutdownCtxFunc:
-				if err := fn(ctx); err != nil {
-					log.Error().Err(err).Msgf("could not shutdown %T", fn)
-				}
-
-			case ShutdownFunc:
-				if err := fn(); err != nil {
-					log.Error().Err(err).Msgf("could not shutdown %T", fn)
-				}
+			if err := s.Shutdown(ctx); err != nil {
+				log.Error().
+					Err(err).
+					Type("type", s).
+					Str("name", s.Name()).
+					Msgf("shutdown failed")
 			}
 
 			wg.Done()

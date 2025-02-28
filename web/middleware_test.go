@@ -64,7 +64,7 @@ func TestMiddlewareOrder(t *testing.T) {
 		})
 	})
 
-	a := web.NewApp(router)
+	a := web.NewApp()
 
 	srv := httptest.NewServer(a)
 
