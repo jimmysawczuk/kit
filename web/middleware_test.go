@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-chi/chi"
 	"github.com/jimmysawczuk/kit/web"
+	"github.com/jimmysawczuk/kit/web/router"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
@@ -44,20 +44,20 @@ func middlewareResult(ctx context.Context, l *zerolog.Logger, w http.ResponseWri
 }
 
 func TestMiddlewareOrder(t *testing.T) {
-	a := web.NewApp().Route(func(router chi.Router) {
-		router.Group(func(r chi.Router) {
+	a := web.NewApp().Route(func(r router.Router) {
+		r.Group(func(r router.Router) {
 			r.Use(appendStr("A"), appendStr("B"), appendStr("C"))
-			r.Method(http.MethodGet, "/hello", web.Handler(middlewareResult))
+			r.Get("/hello", web.Handler(middlewareResult))
 		})
 
-		router.Group(func(r chi.Router) {
+		r.Group(func(r router.Router) {
 			r.Use(appendStr("D"), appendStr("E"), appendStr("F"))
-			r.Method(http.MethodGet, "/world", web.Handler(middlewareResult))
+			r.Get("/world", web.Handler(middlewareResult))
 
-			r.Group(func(r chi.Router) {
+			r.Group(func(r router.Router) {
 				r.Use(appendStr("G"), appendStr("H"))
 
-				r.Method(http.MethodGet, "/world/v2", web.Handler(middlewareResult))
+				r.Get("/world/v2", web.Handler(middlewareResult))
 			})
 		})
 	})

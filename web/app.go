@@ -3,12 +3,12 @@ package web
 import (
 	"net/http"
 
-	"github.com/go-chi/chi"
+	"github.com/jimmysawczuk/kit/web/router"
 )
 
 // App holds a router for endpoints as well as Shutdowners and Healthcheckers.
 type App struct {
-	router chi.Router
+	router router.Router
 
 	sd []Shutdowner
 	hc []HealthChecker
@@ -17,12 +17,17 @@ type App struct {
 // NewApp instanciates a new App, with the provided logger and global middleware.
 func NewApp() *App {
 	return &App{
-		router: chi.NewMux(),
+		router: router.New(),
 	}
 }
 
-func (a *App) Route(f func(r chi.Router)) *App {
+func (a *App) Route(f func(router.Router)) *App {
 	f(a.router)
+	return a
+}
+
+func (a *App) WithRouter(r router.Router) *App {
+	a.router = r
 	return a
 }
 
@@ -52,8 +57,8 @@ func (a *App) RouteModule(m Module, name string, mws ...Middleware) *App {
 		a.WithShutdown(ty)
 	}
 
-	a.Route(func(r chi.Router) {
-		m.Route(r, mws...)
+	a.router.Group(func(r router.Router) {
+		m.Route(r)
 	})
 
 	return a
