@@ -51,34 +51,47 @@ func TestMiddlewareOrder(t *testing.T) {
 		})
 
 		r.Group(func(r router.Router) {
-			r.Use(appendStr("D"), appendStr("E"), appendStr("F"))
-			r.Get("/world", web.Handler(middlewareResult))
+			r.Get("/world", web.Handler(middlewareResult), appendStr("I"))
 
 			r.Group(func(r router.Router) {
 				r.Use(appendStr("G"), appendStr("H"))
 
-				r.Get("/world/v2", web.Handler(middlewareResult))
+				r.Get("/world/v2", web.Handler(middlewareResult), appendStr("J"))
+				r.Get("/world/v3", web.Handler(middlewareResult), appendStr("K"))
 			})
-		})
+		}, appendStr("D"), appendStr("E"), appendStr("F"))
 	})
 
 	srv := httptest.NewServer(a)
 
-	{
-		resp, err := http.Get(srv.URL + "/hello")
-		require.NoError(t, err)
-		require.Equal(t, `ABC`, strings.TrimSpace(getBody(resp.Body)))
+	tests := []struct {
+		path     string
+		expected string
+	}{
+		{
+			path:     "/hello",
+			expected: "ABC",
+		},
+
+		{
+			path:     "/world",
+			expected: "DEFI",
+		},
+
+		{
+			path:     "/world/v2",
+			expected: "DEFGHJ",
+		},
+
+		{
+			path:     "/world/v3",
+			expected: "DEFGHK",
+		},
 	}
 
-	{
-		resp, err := http.Get(srv.URL + "/world")
+	for _, test := range tests {
+		resp, err := http.Get(srv.URL + test.path)
 		require.NoError(t, err)
-		require.Equal(t, `DEF`, strings.TrimSpace(getBody(resp.Body)))
-	}
-
-	{
-		resp, err := http.Get(srv.URL + "/world/v2")
-		require.NoError(t, err)
-		require.Equal(t, `DEFGH`, strings.TrimSpace(getBody(resp.Body)))
+		require.Equal(t, test.expected, strings.TrimSpace(getBody(resp.Body)))
 	}
 }

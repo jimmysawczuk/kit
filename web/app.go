@@ -8,7 +8,8 @@ import (
 
 // App holds a router for endpoints as well as Shutdowners and Healthcheckers.
 type App struct {
-	router router.Router
+	handler http.Handler
+	router  router.Router
 
 	sd []Shutdowner
 	hc []HealthChecker
@@ -22,12 +23,21 @@ func NewApp() *App {
 }
 
 func (a *App) Route(f func(router.Router)) *App {
+	if a.router == nil {
+		a.router = router.New()
+	}
+
 	f(a.router)
 	return a
 }
 
 func (a *App) WithRouter(r router.Router) *App {
 	a.router = r
+	return a
+}
+
+func (a *App) WithHandler(handler http.Handler) *App {
+	a.handler = handler
 	return a
 }
 
@@ -43,6 +53,11 @@ func (a *App) WithHealthCheck(h HealthChecker) *App {
 
 // ServeHTTP implements http.Handler, proxying the incoming request to the Router.
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if a.handler != nil {
+		a.handler.ServeHTTP(w, r)
+		return
+	}
+
 	a.router.ServeHTTP(w, r)
 }
 
