@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,9 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jimmysawczuk/kit/web"
 	"github.com/jimmysawczuk/kit/web/respond"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 // WithDefaultTimeout wraps WithTimeout with a timeout of 15 seconds.
@@ -20,9 +18,13 @@ var WithDefaultTimeout = WithTimeout(15 * time.Second)
 // WithTimeout ensures that the provided handler completes within a set amount of time. If it doesn't, it'll
 // write a 503 to the client. It *does not* prevent the handler from completing, but silently swallows any
 // additional output.
-func WithTimeout(timeout time.Duration) func(web.Handler) web.Handler {
-	return func(h web.Handler) web.Handler {
-		return func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+func WithTimeout(timeout time.Duration) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+
+			log := zerolog.Ctx(ctx)
+
 			// http.ResponseWriters don't like when we try to read/write from the header, or call Write after
 			// the connection closes, so we'll wrap our actual writer with something that can swallow any writes
 			// that are made after the timeout writer interrupts.
@@ -36,13 +38,13 @@ func WithTimeout(timeout time.Duration) func(web.Handler) web.Handler {
 				defer func() {
 					if p := recover(); p != nil {
 						err := fmt.Errorf("panic: %v", p)
-						log.WithError(err).WithField("mw", "WithTimeout").Error("recovered from panic")
+						log.Error().Err(err).Msg("with timeout: recovered from panic")
 						rdebug.PrintStack()
 						panicCh <- err
 					}
 				}()
 
-				h(ctx, log, tw, r)
+				h.ServeHTTP(tw, r)
 				doneCh <- true
 			}()
 
@@ -53,16 +55,16 @@ func WithTimeout(timeout time.Duration) func(web.Handler) web.Handler {
 				tw.mx.Unlock()
 			case <-time.After(timeout):
 				tw.mx.Lock()
-				respond.WithError(ctx, log, tw, r, http.StatusGatewayTimeout, fmt.Errorf("timed out after %s", timeout))
+				respond.Error(ctx, http.StatusGatewayTimeout, fmt.Errorf("timed out after %s", timeout))
 				tw.done = true
 				tw.mx.Unlock()
 			case perr := <-panicCh:
 				tw.mx.Lock()
-				respond.WithError(ctx, log, tw, r, http.StatusInternalServerError, perr)
+				respond.Error(ctx, http.StatusInternalServerError, perr)
 				tw.done = true
 				tw.mx.Unlock()
 			}
-		}
+		})
 	}
 }
 

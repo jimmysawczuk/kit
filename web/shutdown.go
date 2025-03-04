@@ -2,60 +2,73 @@ package web
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
-type ShutdownFunc func() error
-
-func (f ShutdownFunc) Shutdown() error {
-	return f()
+type Shutdowner interface {
+	Name() string
+	Shutdown(context.Context) error
 }
 
-func (f ShutdownFunc) sealed() {}
+type ShutdownerFunc func(context.Context) error
 
-type ShutdownCtxFunc func(context.Context) error
+func (s ShutdownerFunc) Shutdown(ctx context.Context) error {
+	return s(ctx)
+}
 
-func (f ShutdownCtxFunc) sealed() {}
+type namedShutdownFunc struct {
+	fn   ShutdownerFunc
+	name string
+}
 
-type Shutdowner interface {
-	sealed()
+var _ Shutdowner = namedShutdownFunc{}
+
+// Name implements Shutdowner.
+func (n namedShutdownFunc) Name() string {
+	return n.name
+}
+
+// Shutdown implements Shutdowner.
+func (n namedShutdownFunc) Shutdown(ctx context.Context) error {
+	return n.fn(ctx)
+}
+
+func NamedShutdownFunc(name string, fn ShutdownerFunc) Shutdowner {
+	return namedShutdownFunc{
+		name: name,
+		fn:   fn,
+	}
 }
 
 // Shutdown gracefully shuts down an HTTP server and app.
-func Shutdown(log logrus.FieldLogger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration, shutdowners ...Shutdowner) {
+func (a *App) Shutdown(ctx context.Context, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration) {
+	log := a.logger
+
 	// We're waiting for either of these signals to fire before exiting, but the behavior
 	// is exactly the same afterwards.
 	select {
 	case v := <-sig:
-		log.Infof("signal received: %s", v)
+		log.Info().Msgf("signal received: %s", v)
 	case <-stopped:
-		log.Infof("stop signal received")
+		log.Info().Msgf("stop signal received")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(shutdowners))
+	wg.Add(len(a.sd))
 
-	for _, v := range shutdowners {
+	for _, v := range a.sd {
 		go func(ctx context.Context, s Shutdowner) {
-
-			switch fn := s.(type) {
-			case ShutdownCtxFunc:
-				if err := fn(ctx); err != nil {
-					log.Println(fmt.Errorf("shutdown %T: %w", fn, err))
-				}
-
-			case ShutdownFunc:
-				if err := fn(); err != nil {
-					log.Println(fmt.Errorf("shutdown %T: %w", fn, err))
-				}
+			if err := s.Shutdown(ctx); err != nil {
+				log.Error().
+					Err(err).
+					Type("type", s).
+					Str("name", s.Name()).
+					Msgf("shutdown failed")
 			}
 
 			wg.Done()

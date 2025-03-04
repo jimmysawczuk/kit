@@ -1,87 +1,98 @@
 package web
 
 import (
-	"context"
-	"errors"
 	"net/http"
 
-	"github.com/go-chi/chi"
-	"github.com/jimmysawczuk/kit/web/respond"
-	"github.com/sirupsen/logrus"
+	"github.com/jimmysawczuk/kit/web/router"
+	"github.com/rs/zerolog"
 )
 
-// App holds a Router for endpoints as well as a contextual logger.
+// App holds a router for endpoints as well as Shutdowners and Healthcheckers.
 type App struct {
-	r   Router
-	log *logrus.Logger
-	sd  []Shutdowner
+	handler http.Handler
+	router  router.Router
+	logger  *zerolog.Logger
 
-	healthChecks []func() error
+	sd []Shutdowner
+	hc []HealthChecker
 }
 
-// NewApp instanciates a new App, with the provided logger and global middleware.
-func NewApp(log *logrus.Logger, mws ...Middleware) *App {
-	a := &App{
-		log: log,
-	}
-
-	a.r = Router{
-		r:   chi.NewRouter(),
-		mws: append([]Middleware{a.Bootstrap}, mws...),
-	}
-
-	return a
-}
-
-// Bootstrap is middleware that initializes a new context.Context from the request context, and creates a new log
-// entry for passing through the request. It should be the *first* middleware invoked.
-func (a *App) Bootstrap(h Handler) Handler {
-	return func(_ context.Context, _ logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		entry := logrus.NewEntry(a.log)
-
-		h(ctx, entry, w, r)
+// NewApp instanciates a new App with a new router.
+func NewApp() *App {
+	return &App{
+		router: router.New(),
 	}
 }
 
-// checkHealth iterates through all of its attached health checks, returning nil if they all return nil.
-func (a *App) checkHealth() error {
-	for _, h := range a.healthChecks {
-		if err := h(); err != nil {
-			return err
-		}
+// Route allow's modifying the App's router using the callback.
+func (a App) Route(f func(router.Router)) *App {
+	if a.router == nil {
+		a.router = router.New()
 	}
 
-	return nil
+	f(a.router)
+	return &a
 }
 
-// ServeHTTP implements http.Handler, proxying the incoming request to the Router.
+// WithLogger attaches the provided *zerolog.Logger to the App.
+func (a App) WithLogger(logger *zerolog.Logger) *App {
+	a.logger = logger
+	return &a
+}
+
+// WithRouter attaches the provided Router to the app.
+func (a App) WithRouter(r router.Router) *App {
+	a.router = r
+	return &a
+}
+
+// WithHandler attaches the provided http.Handler to the app.
+func (a App) WithHandler(handler http.Handler) *App {
+	a.handler = handler
+	return &a
+}
+
+// WithShutdown registers the provided Shutdowner to the app.
+func (a App) WithShutdown(s Shutdowner) *App {
+	a.sd = append(a.sd, s)
+	return &a
+}
+
+// WithHealthcheck registers the provided Shutdowner to the app.
+func (a App) WithHealthCheck(h HealthChecker) *App {
+	a.hc = append(a.hc, h)
+	return &a
+}
+
+// ServeHTTP implements http.Handler. If the app has an attached handler, ServeHTTP proxies
+// the requests there. Otherwise, it proxies to the attached Router.
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	a.r.r.ServeHTTP(w, r)
-}
+	if a.logger != nil {
+		r = r.WithContext(a.logger.WithContext(r.Context()))
+	}
 
-// Shutdown closes any resources that we might want to responsibly close before the app is terminated.
-func (a *App) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-// Route allows the caller to set custom routes on the global scope, with the provided middleware.
-func (a *App) Route(rs func(r Router), mws ...Middleware) {
-	a.r.Route("/", rs, mws...)
-}
-
-// RouteModule attaches the routes from the provided module to the app, with the provided middleware.
-func (a *App) RouteModule(m Module, mws ...Middleware) {
-	a.healthChecks = append(a.healthChecks, m.Healthy)
-	m.Route(a.r, mws...)
-}
-
-// Health is a Handler checks the health of the App, emitting a 503 if not healthy.
-func (a *App) Health(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
-	if err := a.checkHealth(); err != nil {
-		respond.WithError(ctx, log, w, r, http.StatusServiceUnavailable, errors.New("not healthy"))
+	if a.handler != nil {
+		a.handler.ServeHTTP(w, r)
 		return
 	}
 
-	respond.WithSuccess(ctx, log, w, r, http.StatusOK, "healthy")
+	a.router.ServeHTTP(w, r)
+}
+
+// RouteModule attaches the routes from the provided module to the app, with the provided middleware,
+// health checks and shutdown funcs.
+func (a *App) RouteModule(m Module, name string, mws ...Middleware) *App {
+	if ty, ok := m.(HealthChecker); ok {
+		a.WithHealthCheck(ty)
+	}
+
+	if ty, ok := m.(Shutdowner); ok {
+		a.WithShutdown(ty)
+	}
+
+	a.router.Group(func(r router.Router) {
+		m.Route(r)
+	}, mws...)
+
+	return a
 }
