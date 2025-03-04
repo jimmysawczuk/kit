@@ -4,12 +4,14 @@ import (
 	"net/http"
 
 	"github.com/jimmysawczuk/kit/web/router"
+	"github.com/rs/zerolog"
 )
 
 // App holds a router for endpoints as well as Shutdowners and Healthcheckers.
 type App struct {
 	handler http.Handler
 	router  router.Router
+	logger  *zerolog.Logger
 
 	sd []Shutdowner
 	hc []HealthChecker
@@ -22,37 +24,46 @@ func NewApp() *App {
 	}
 }
 
-func (a *App) Route(f func(router.Router)) *App {
+func (a App) Route(f func(router.Router)) *App {
 	if a.router == nil {
 		a.router = router.New()
 	}
 
 	f(a.router)
-	return a
+	return &a
 }
 
-func (a *App) WithRouter(r router.Router) *App {
+func (a App) WithLogger(logger *zerolog.Logger) *App {
+	a.logger = logger
+	return &a
+}
+
+func (a App) WithRouter(r router.Router) *App {
 	a.router = r
-	return a
+	return &a
 }
 
-func (a *App) WithHandler(handler http.Handler) *App {
+func (a App) WithHandler(handler http.Handler) *App {
 	a.handler = handler
-	return a
+	return &a
 }
 
-func (a *App) WithShutdown(s Shutdowner) *App {
+func (a App) WithShutdown(s Shutdowner) *App {
 	a.sd = append(a.sd, s)
-	return a
+	return &a
 }
 
-func (a *App) WithHealthCheck(h HealthChecker) *App {
+func (a App) WithHealthCheck(h HealthChecker) *App {
 	a.hc = append(a.hc, h)
-	return a
+	return &a
 }
 
 // ServeHTTP implements http.Handler, proxying the incoming request to the Router.
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if a.logger != nil {
+		r = r.WithContext(a.logger.WithContext(r.Context()))
+	}
+
 	if a.handler != nil {
 		a.handler.ServeHTTP(w, r)
 		return
@@ -74,7 +85,7 @@ func (a *App) RouteModule(m Module, name string, mws ...Middleware) *App {
 
 	a.router.Group(func(r router.Router) {
 		m.Route(r)
-	})
+	}, mws...)
 
 	return a
 }

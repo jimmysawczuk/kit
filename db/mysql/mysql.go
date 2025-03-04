@@ -48,12 +48,12 @@ func (c Config) MySQLConfig() (*mysql.Config, error) {
 
 		pem, err := os.ReadFile(c.CACertPath)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't read ca cert file (path: %s)", c.CACertPath)
+			return nil, fmt.Errorf("couldn't read ca cert file (path: %s): %w", c.CACertPath, err)
 		}
 
 		certPool := x509.NewCertPool()
 		if ok := certPool.AppendCertsFromPEM(pem); !ok {
-			return nil, fmt.Errorf("can't decode pem file (file: %s)", c.CACertPath)
+			return nil, fmt.Errorf("can't decode pem file (file: %s): %w", c.CACertPath, err)
 		}
 
 		if err := mysql.RegisterTLSConfig(c.TLS, &tls.Config{

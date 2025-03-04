@@ -22,3 +22,6 @@ func (sh SyncHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp := sh(r.Context(), zerolog.Ctx(r.Context()), r)
 	resp.Write(w)
 }
+
+// Middleware is a function that wraps an http.Handler with another.
+type Middleware = func(http.Handler) http.Handler

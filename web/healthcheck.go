@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jimmysawczuk/kit/web/respond"
-	"github.com/rs/zerolog/log"
 )
 
 type HealthChecker interface {
@@ -20,9 +19,35 @@ func (h HealthCheckerFunc) HealthCheck(ctx context.Context) error {
 	return h(ctx)
 }
 
+type namedHealthCheckFunc struct {
+	fn   func(context.Context) error
+	name string
+}
+
+var _ HealthChecker = namedHealthCheckFunc{}
+
+// HealthCheck implements HealthChecker.
+func (n namedHealthCheckFunc) HealthCheck(ctx context.Context) error {
+	return n.fn(ctx)
+}
+
+// Name implements HealthChecker.
+func (n namedHealthCheckFunc) Name() string {
+	return n.name
+}
+
+func NamedHealthCheckFunc(name string, fn HealthCheckerFunc) HealthChecker {
+	return namedHealthCheckFunc{
+		fn:   fn,
+		name: name,
+	}
+}
+
 // Health is a Handler checks the health of the App, emitting a 503 if not healthy.
 func (a *App) Health(dur time.Duration) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log := a.logger
+
 		ctx, cancel := context.WithTimeout(r.Context(), dur)
 		defer cancel()
 

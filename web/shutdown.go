@@ -5,8 +5,6 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	"github.com/rs/zerolog"
 )
 
 type Shutdowner interface {
@@ -20,8 +18,34 @@ func (s ShutdownerFunc) Shutdown(ctx context.Context) error {
 	return s(ctx)
 }
 
+type namedShutdownFunc struct {
+	fn   ShutdownerFunc
+	name string
+}
+
+var _ Shutdowner = namedShutdownFunc{}
+
+// Name implements Shutdowner.
+func (n namedShutdownFunc) Name() string {
+	return n.name
+}
+
+// Shutdown implements Shutdowner.
+func (n namedShutdownFunc) Shutdown(ctx context.Context) error {
+	return n.fn(ctx)
+}
+
+func NamedShutdownFunc(name string, fn ShutdownerFunc) Shutdowner {
+	return namedShutdownFunc{
+		name: name,
+		fn:   fn,
+	}
+}
+
 // Shutdown gracefully shuts down an HTTP server and app.
-func (a *App) Shutdown(log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration) {
+func (a *App) Shutdown(ctx context.Context, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration) {
+	log := a.logger
+
 	// We're waiting for either of these signals to fire before exiting, but the behavior
 	// is exactly the same afterwards.
 	select {
@@ -31,7 +55,7 @@ func (a *App) Shutdown(log *zerolog.Logger, sig chan os.Signal, stopped chan boo
 		log.Info().Msgf("stop signal received")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	wg := sync.WaitGroup{}

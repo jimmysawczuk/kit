@@ -40,8 +40,6 @@ type chiRouter struct {
 	chi chi.Router
 }
 
-var _ Router = chiRouter{}
-
 func New() Router {
 	return chiRouter{
 		chi: chi.NewRouter(),
