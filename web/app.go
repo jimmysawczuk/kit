@@ -17,13 +17,14 @@ type App struct {
 	hc []HealthChecker
 }
 
-// NewApp instanciates a new App, with the provided logger and global middleware.
+// NewApp instanciates a new App with a new router.
 func NewApp() *App {
 	return &App{
 		router: router.New(),
 	}
 }
 
+// Route allow's modifying the App's router using the callback.
 func (a App) Route(f func(router.Router)) *App {
 	if a.router == nil {
 		a.router = router.New()
@@ -33,32 +34,38 @@ func (a App) Route(f func(router.Router)) *App {
 	return &a
 }
 
+// WithLogger attaches the provided *zerolog.Logger to the App.
 func (a App) WithLogger(logger *zerolog.Logger) *App {
 	a.logger = logger
 	return &a
 }
 
+// WithRouter attaches the provided Router to the app.
 func (a App) WithRouter(r router.Router) *App {
 	a.router = r
 	return &a
 }
 
+// WithHandler attaches the provided http.Handler to the app.
 func (a App) WithHandler(handler http.Handler) *App {
 	a.handler = handler
 	return &a
 }
 
+// WithShutdown registers the provided Shutdowner to the app.
 func (a App) WithShutdown(s Shutdowner) *App {
 	a.sd = append(a.sd, s)
 	return &a
 }
 
+// WithHealthcheck registers the provided Shutdowner to the app.
 func (a App) WithHealthCheck(h HealthChecker) *App {
 	a.hc = append(a.hc, h)
 	return &a
 }
 
-// ServeHTTP implements http.Handler, proxying the incoming request to the Router.
+// ServeHTTP implements http.Handler. If the app has an attached handler, ServeHTTP proxies
+// the requests there. Otherwise, it proxies to the attached Router.
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if a.logger != nil {
 		r = r.WithContext(a.logger.WithContext(r.Context()))
@@ -72,9 +79,9 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.router.ServeHTTP(w, r)
 }
 
-// RouteModule attaches the routes from the provided module to the app, with the provided middleware.
+// RouteModule attaches the routes from the provided module to the app, with the provided middleware,
+// health checks and shutdown funcs.
 func (a *App) RouteModule(m Module, name string, mws ...Middleware) *App {
-	// TODO: register these with some sort of name
 	if ty, ok := m.(HealthChecker); ok {
 		a.WithHealthCheck(ty)
 	}
