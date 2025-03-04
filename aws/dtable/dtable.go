@@ -1,25 +1,24 @@
 package dtable
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 type Table struct {
 	conn *dynamodb.DynamoDB
-	log  logrus.FieldLogger
 
 	Name string
 }
 
-func New(conn *dynamodb.DynamoDB, name string, log logrus.FieldLogger) *Table {
+func New(conn *dynamodb.DynamoDB, name string) *Table {
 	return &Table{
 		conn: conn,
-		log:  log,
 		Name: name,
 	}
 }
@@ -28,27 +27,30 @@ func (t *Table) Conn() *dynamodb.DynamoDB {
 	return t.conn
 }
 
-func debug(log logrus.FieldLogger, name string, in any) {
+func debug(ctx context.Context, table, name string, in any) {
+	log := zerolog.Ctx(ctx)
+
 	if log != nil {
 		_, file, line, _ := runtime.Caller(3)
-		log.WithFields(logrus.Fields{
-			"table": name,
-			"file":  file,
-			"line":  line,
-			// "in": in,
-		}).Debug(name)
+
+		log.Debug().
+			Str("table", table).
+			Str("file", file).
+			Int("line", line).
+			Any("in", in).
+			Msgf("dtable: debug: %s", name)
 	}
 }
 
-func (t *Table) PutItem(ctx aws.Context, in *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
-	debug(t.log, "PutItem", in)
+func (t *Table) PutItem(ctx context.Context, in *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+	debug(ctx, t.Name, "PutItem", in)
 
 	in.TableName = aws.String(t.Name)
 	return t.conn.PutItemWithContext(ctx, in)
 }
 
-func (t *Table) GetItem(ctx aws.Context, in *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
-	debug(t.log, "PutItem", in)
+func (t *Table) GetItem(ctx context.Context, in *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
+	debug(ctx, t.Name, "PutItem", in)
 
 	in.TableName = aws.String(t.Name)
 	return t.conn.GetItemWithContext(ctx, in)
@@ -81,8 +83,8 @@ func GetKeysAndAttributes(pk, sk string, keys []Key) []map[string]*dynamodb.Attr
 	return v
 }
 
-func (t *Table) BatchGetItem(ctx aws.Context, in *BatchGetItemInput) (*BatchGetItemOutput, error) {
-	debug(t.log, "BatchGetItem", in)
+func (t *Table) BatchGetItem(ctx context.Context, in *BatchGetItemInput) (*BatchGetItemOutput, error) {
+	debug(ctx, t.Name, "BatchGetItem", in)
 
 	din := dynamodb.BatchGetItemInput{
 		RequestItems: map[string]*dynamodb.KeysAndAttributes{
@@ -103,22 +105,22 @@ func (t *Table) BatchGetItem(ctx aws.Context, in *BatchGetItemInput) (*BatchGetI
 	}, nil
 }
 
-func (t *Table) UpdateItem(ctx aws.Context, in *dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error) {
-	debug(t.log, "UpdateItem", in)
+func (t *Table) UpdateItem(ctx context.Context, in *dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error) {
+	debug(ctx, t.Name, "UpdateItem", in)
 
 	in.TableName = aws.String(t.Name)
 	return t.conn.UpdateItemWithContext(ctx, in)
 }
 
-func (t *Table) DeleteItem(ctx aws.Context, in *dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error) {
-	debug(t.log, "DeleteItem", in)
+func (t *Table) DeleteItem(ctx context.Context, in *dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error) {
+	debug(ctx, t.Name, "DeleteItem", in)
 
 	in.TableName = aws.String(t.Name)
 	return t.conn.DeleteItemWithContext(ctx, in)
 }
 
-func (t *Table) Query(ctx aws.Context, in *dynamodb.QueryInput) (*dynamodb.QueryOutput, error) {
-	debug(t.log, "Query", in)
+func (t *Table) Query(ctx context.Context, in *dynamodb.QueryInput) (*dynamodb.QueryOutput, error) {
+	debug(ctx, t.Name, "Query", in)
 
 	in.TableName = aws.String(t.Name)
 	return t.conn.QueryWithContext(ctx, in)
