@@ -24,4 +24,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-retract v1.0.0 // tagged early
+// Published v1 too early
+retract [v1.0.0, v1.0.1]
