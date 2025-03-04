@@ -7,53 +7,56 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/jimmysawczuk/kit/web"
 	"github.com/jimmysawczuk/kit/web/requestid"
 	"github.com/jimmysawczuk/kit/web/respond"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
-var log = logrus.New()
+var log = zerolog.New(os.Stderr)
 
-func bootstrap(ctx context.Context, log logrus.FieldLogger, h web.Handler) http.Handler {
+func assignFakeRequestID(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h(ctx, log, w, r)
+		ctx := requestid.Set(r.Context(), "FakeID")
+		r = r.WithContext(ctx)
+		h.ServeHTTP(w, r)
 	})
 }
 
 func TestRespondWithSuccess(t *testing.T) {
 	tests := []struct {
 		name              string
-		handler           web.Handler
+		handler           http.Handler
 		expectedStatus    int
 		expectedRequestID string
 		expectedOutput    string
 	}{
 		{
 			name: "200_RESPONSE",
-			handler: web.Handler(func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
-				respond.WithSuccess(ctx, log, w, r, http.StatusOK, struct {
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				respond.Success(ctx, http.StatusOK, struct {
 					Success bool `json:"success"`
 				}{
 					Success: true,
-				})
+				}).Write(w)
 			}),
 			expectedStatus: http.StatusOK,
 			expectedOutput: `{"success":true}`,
 		},
 		{
 			name: "201_RESPONSE",
-			handler: web.Handler(func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 				ctx = requestid.Set(ctx, "FakeID")
-				respond.WithSuccess(ctx, log, w, r, http.StatusCreated, struct {
+				respond.Success(ctx, http.StatusCreated, struct {
 					Status string `json:"status"`
 				}{
 					Status: "created",
-				})
+				}).Write(w)
 			}),
 			expectedStatus:    http.StatusCreated,
 			expectedRequestID: "FakeID",
@@ -63,9 +66,7 @@ func TestRespondWithSuccess(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			hdlr := bootstrap(context.Background(), log, test.handler)
-
-			srv := httptest.NewServer(hdlr)
+			srv := httptest.NewServer(test.handler)
 			defer srv.Close()
 
 			req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
@@ -95,9 +96,9 @@ func TestRespondWithError(t *testing.T) {
 	}{
 		{
 			name: "400_RESPONSE",
-			handler: web.Handler(func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 				ctx = requestid.Set(ctx, "FakeID")
-				respond.WithError(ctx, log, w, r, http.StatusBadRequest, errors.New("bad request"))
+				respond.Error(ctx, http.StatusBadRequest, errors.New("bad request")).Write(w)
 			}),
 			expectedStatus:    http.StatusBadRequest,
 			expectedRequestID: "FakeID",
@@ -105,7 +106,7 @@ func TestRespondWithError(t *testing.T) {
 		},
 		{
 			name: "400_RESPONSE_EXTRA_INFO",
-			handler: web.Handler(func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 				ctx = requestid.Set(ctx, "FakeID")
 				err := respond.ErrWithInfo(errors.New("bad request"), struct {
 					Problem string `json:"problem"`
@@ -113,7 +114,7 @@ func TestRespondWithError(t *testing.T) {
 					Problem: "Bad user ID",
 				})
 
-				respond.WithError(ctx, log, w, r, http.StatusBadRequest, err)
+				respond.Error(ctx, http.StatusBadRequest, err).Write(w)
 			}),
 			expectedStatus:    http.StatusBadRequest,
 			expectedRequestID: "FakeID",
@@ -121,7 +122,7 @@ func TestRespondWithError(t *testing.T) {
 		},
 		{
 			name: "400_RESPONSE_ERROR_CODE_INFO",
-			handler: web.Handler(func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 				ctx = requestid.Set(ctx, "FakeID")
 				err := respond.ErrWithInfo(errors.New("bad request"), struct {
 					Problem string `json:"problem"`
@@ -129,7 +130,7 @@ func TestRespondWithError(t *testing.T) {
 					Problem: "Bad user ID",
 				})
 
-				respond.WithCodedError(ctx, log, w, r, http.StatusBadRequest, "ERR_1234", err)
+				respond.CodedError(ctx, http.StatusBadRequest, "ERR_1234", err).Write(w)
 			}),
 			expectedStatus:    http.StatusBadRequest,
 			expectedRequestID: "FakeID",
@@ -139,9 +140,7 @@ func TestRespondWithError(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			hdlr := bootstrap(context.Background(), log, test.handler)
-
-			srv := httptest.NewServer(hdlr)
+			srv := httptest.NewServer(test.handler)
 			defer srv.Close()
 
 			req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
@@ -171,9 +170,9 @@ func TestRespondWithErrorSuppressed(t *testing.T) {
 	}{
 		{
 			name: "400_RESPONSE",
-			handler: web.Handler(func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 				ctx = requestid.Set(ctx, "FakeID")
-				respond.WithError(ctx, log, w, r, http.StatusBadRequest, errors.New("bad request"))
+				respond.Error(ctx, http.StatusBadRequest, errors.New("bad request")).Write(w)
 			}),
 			expectedStatus:    http.StatusBadRequest,
 			expectedRequestID: "FakeID",
@@ -181,7 +180,7 @@ func TestRespondWithErrorSuppressed(t *testing.T) {
 		},
 		{
 			name: "400_RESPONSE_EXTRA_INFO",
-			handler: web.Handler(func(ctx context.Context, log logrus.FieldLogger, w http.ResponseWriter, r *http.Request) {
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 				ctx = requestid.Set(ctx, "FakeID")
 				err := respond.ErrWithInfo(errors.New("bad request"), struct {
 					Problem string `json:"problem"`
@@ -189,7 +188,7 @@ func TestRespondWithErrorSuppressed(t *testing.T) {
 					Problem: "Bad user ID",
 				})
 
-				respond.WithError(ctx, log, w, r, http.StatusBadRequest, err)
+				respond.Error(ctx, http.StatusBadRequest, err).Write(w)
 			}),
 			expectedStatus:    http.StatusBadRequest,
 			expectedRequestID: "FakeID",
@@ -199,10 +198,9 @@ func TestRespondWithErrorSuppressed(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			respond.DefaultResponder.SuppressErrors = true
-			hdlr := bootstrap(context.Background(), log, test.handler)
+			respond.DefaultResponder = &respond.JSONResponder{SuppressErrors: true}
 
-			srv := httptest.NewServer(hdlr)
+			srv := httptest.NewServer(test.handler)
 			defer srv.Close()
 
 			req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
