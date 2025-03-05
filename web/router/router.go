@@ -34,6 +34,14 @@ type Router interface {
 	Use(...Middleware)
 	Group(func(Router), ...Middleware)
 	Route(string, func(Router), ...Middleware)
+
+	Routes() []Route
+}
+
+type Route struct {
+	Method  string
+	Path    string
+	Handler string
 }
 
 type chiRouter struct {
@@ -150,4 +158,16 @@ func (ro chiRouter) Route(path string, f func(Router), mws ...Middleware) {
 
 func (ro chiRouter) Use(m ...Middleware) {
 	ro.chi.Use(m...)
+}
+
+func (ro chiRouter) Routes() []Route {
+	tbr := []Route{}
+	chi.Walk(ro.chi, func(method, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+		tbr = append(tbr, Route{
+			Method: method,
+			Path:   route,
+		})
+		return nil
+	})
+	return tbr
 }

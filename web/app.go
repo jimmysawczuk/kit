@@ -24,6 +24,14 @@ func NewApp() *App {
 	}
 }
 
+func (a App) Routes() []router.Route {
+	if a.router == nil {
+		return nil
+	}
+
+	return a.router.Routes()
+}
+
 // Route allow's modifying the App's router using the callback.
 func (a App) Route(f func(router.Router)) *App {
 	if a.router == nil {
