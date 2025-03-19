@@ -89,7 +89,7 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // RouteModule attaches the routes from the provided module to the app, with the provided middleware,
 // health checks and shutdown funcs.
-func (a *App) RouteModule(m Module, name string, mws ...Middleware) *App {
+func (a *App) RouteModule(m Module, mws ...Middleware) *App {
 	if ty, ok := m.(HealthChecker); ok {
 		a.WithHealthCheck(ty)
 	}
@@ -103,4 +103,12 @@ func (a *App) RouteModule(m Module, name string, mws ...Middleware) *App {
 	}, mws...)
 
 	return a
+}
+
+func (a *App) HealthCheckers() []HealthChecker {
+	return a.hc
+}
+
+func (a *App) Shutdowners() []Shutdowner {
+	return a.sd
 }

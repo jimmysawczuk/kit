@@ -4,7 +4,8 @@ import (
 	"context"
 	"os"
 	"sync"
-	"time"
+
+	"github.com/rs/zerolog"
 )
 
 type Shutdowner interface {
@@ -42,26 +43,21 @@ func NamedShutdownFunc(name string, fn ShutdownerFunc) Shutdowner {
 	}
 }
 
-// Shutdown gracefully shuts down an HTTP server and app.
-func (a *App) Shutdown(ctx context.Context, sig chan os.Signal, stopped chan bool, done chan bool, timeout time.Duration) {
-	log := a.logger
-
+// Shutdown gracefully executes the provided Shutdowners in parallel. It will log any errors that are returned.
+func Shutdown(ctx context.Context, log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done chan bool, sd ...Shutdowner) {
 	// We're waiting for either of these signals to fire before exiting, but the behavior
 	// is exactly the same afterwards.
 	select {
 	case v := <-sig:
 		log.Info().Msgf("signal received: %s", v)
 	case <-stopped:
-		log.Info().Msgf("stop signal received")
+		log.Info().Msg("stop signal received")
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	wg := sync.WaitGroup{}
-	wg.Add(len(a.sd))
+	wg.Add(len(sd))
 
-	for _, v := range a.sd {
+	for _, v := range sd {
 		go func(ctx context.Context, s Shutdowner) {
 			if err := s.Shutdown(ctx); err != nil {
 				log.Error().
@@ -75,7 +71,17 @@ func (a *App) Shutdown(ctx context.Context, sig chan os.Signal, stopped chan boo
 		}(ctx, v)
 	}
 
-	wg.Wait()
+	wgDone := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		wgDone <- struct{}{}
+	}()
+
+	select {
+	case <-ctx.Done():
+	case <-wgDone:
+	}
 
 	done <- true
 }
