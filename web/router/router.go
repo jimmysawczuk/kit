@@ -34,6 +34,7 @@ type Router interface {
 	Use(...Middleware)
 	Group(func(Router), ...Middleware)
 	Route(string, func(Router), ...Middleware)
+	Mount(string, http.Handler, ...Middleware)
 
 	Routes() []Route
 }
@@ -153,6 +154,13 @@ func (ro chiRouter) Route(path string, f func(Router), mws ...Middleware) {
 		rr := newSubrouter(inner)
 		rr.Use(mws...)
 		f(rr)
+	})
+}
+
+func (ro chiRouter) Mount(path string, h http.Handler, mws ...Middleware) {
+	ro.chi.Route(path, func(r chi.Router) {
+		r.Use(mws...)
+		r.Mount("/", h)
 	})
 }
 
