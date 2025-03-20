@@ -91,11 +91,11 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // health checks and shutdown funcs.
 func (a *App) RouteModule(m Module, mws ...Middleware) *App {
 	if ty, ok := m.(HealthChecker); ok {
-		a.WithHealthCheck(ty)
+		a = a.WithHealthCheck(ty)
 	}
 
 	if ty, ok := m.(Shutdowner); ok {
-		a.WithShutdown(ty)
+		a = a.WithShutdown(ty)
 	}
 
 	if a.router == nil {
