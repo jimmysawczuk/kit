@@ -61,7 +61,7 @@ func TestModule(t *testing.T) {
 	mod := module{}
 
 	a := web.NewApp()
-	a.RouteModule(mod, "test")
+	a.RouteModule(mod)
 
 	srv := httptest.NewServer(a)
 
