@@ -18,7 +18,6 @@ func TestHealthCheckHandler(t *testing.T) {
 	alwaysHealthy := web.NamedHealthCheckFunc("healthy", func(ctx context.Context) error { return nil })
 	alwaysUnhealthy := web.NamedHealthCheckFunc("unhealthy", func(ctx context.Context) error { return fmt.Errorf("unhealthy") })
 	slowHealthy := web.NamedHealthCheckFunc("slowHealthy", func(ctx context.Context) error { time.Sleep(400 * time.Millisecond); return nil })
-	// slowUnhealthy := web.NamedHealthCheckFunc("slowUnhealthy", func(ctx context.Context) error { time.Sleep(200 * time.Millisecond); return fmt.Errorf("unhealthy") })
 
 	tests := []struct {
 		Name     string
@@ -39,13 +38,13 @@ func TestHealthCheckHandler(t *testing.T) {
 			Timeout:  1 * time.Second,
 		},
 		{
-			Name:     "SLOW_HEALTHY",
+			Name:     "TIMEOUT",
 			Expected: false,
 			HCs:      []web.HealthChecker{slowHealthy},
 			Timeout:  300 * time.Millisecond,
 		},
 		{
-			Name:     "SLOW_HEALTHY_LONGER_TIMEOUT",
+			Name:     "HEALTHY_LONGER_TIMEOUT",
 			Expected: true,
 			HCs:      []web.HealthChecker{slowHealthy},
 			Timeout:  500 * time.Millisecond,
@@ -76,6 +75,8 @@ func TestHealthCheckHandler(t *testing.T) {
 
 			resp, err := http.Get(srv.URL)
 			require.NoError(t, err)
+
+			defer resp.Body.Close()
 
 			var target struct {
 				Healthy bool            `json:"healthy"`

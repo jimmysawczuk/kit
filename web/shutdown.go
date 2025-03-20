@@ -44,7 +44,7 @@ func NamedShutdownFunc(name string, fn ShutdownerFunc) Shutdowner {
 }
 
 // Shutdown gracefully executes the provided Shutdowners in parallel. It will log any errors that are returned.
-func Shutdown(ctx context.Context, log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done chan bool, sd ...Shutdowner) {
+func Shutdown(ctx context.Context, log *zerolog.Logger, sig chan os.Signal, stopped chan bool, done chan error, sd ...Shutdowner) {
 	// We're waiting for either of these signals to fire before exiting, but the behavior
 	// is exactly the same afterwards.
 	select {
@@ -80,8 +80,12 @@ func Shutdown(ctx context.Context, log *zerolog.Logger, sig chan os.Signal, stop
 
 	select {
 	case <-ctx.Done():
+		if ctx.Err() == context.DeadlineExceeded {
+			done <- context.DeadlineExceeded
+			return
+		}
 	case <-wgDone:
 	}
 
-	done <- true
+	done <- nil
 }
