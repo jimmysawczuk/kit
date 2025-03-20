@@ -10,9 +10,12 @@ import (
 type loggableResponseWriter struct {
 	http.ResponseWriter
 
-	start        time.Time
-	end          time.Time
+	start time.Time
+	end   time.Time
+
 	bytesWritten int
+	contentType  string
+	status       int
 }
 
 // ProfileRequest adds logging about how long the request took to execute.
@@ -25,7 +28,7 @@ func ProfileRequest(h http.Handler) http.Handler {
 
 		log := zerolog.Ctx(r.Context())
 		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-			return c.Time("start", lrw.start)
+			return c.Time("@req.start", lrw.start)
 		})
 
 		log.Info().Msg("request: started")
@@ -35,9 +38,11 @@ func ProfileRequest(h http.Handler) http.Handler {
 		lrw.end = time.Now()
 
 		log.Info().
-			Time("end", lrw.end).
-			Dur("dur", lrw.end.Sub(lrw.start)).
-			Int("size", lrw.bytesWritten).
+			Time("@req.end", lrw.end).
+			Dur("@req.dur", lrw.end.Sub(lrw.start)).
+			Str("@resp.type", lrw.contentType).
+			Int("@resp.size", lrw.bytesWritten).
+			Int("@resp.status", lrw.status).
 			Msg("request: finished")
 	})
 }
@@ -54,6 +59,6 @@ func (l *loggableResponseWriter) Header() http.Header {
 
 func (l *loggableResponseWriter) WriteHeader(code int) {
 	l.ResponseWriter.WriteHeader(code)
-	// l.contentType = l.Header().Get("Content-Type")
-	// l.statusCode = code
+	l.contentType = l.Header().Get("Content-Type")
+	l.status = code
 }
