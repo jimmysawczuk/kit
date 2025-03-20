@@ -32,7 +32,7 @@ func (a App) Routes() []router.Route {
 	return a.router.Routes()
 }
 
-// Route allow's modifying the App's router using the callback.
+// Route allows modifying the App's router using the callback.
 func (a App) Route(f func(router.Router)) *App {
 	if a.router == nil {
 		a.router = router.New()
@@ -43,33 +43,40 @@ func (a App) Route(f func(router.Router)) *App {
 }
 
 // WithLogger attaches the provided *zerolog.Logger to the App.
-func (a App) WithLogger(logger *zerolog.Logger) *App {
+func (a *App) WithLogger(logger *zerolog.Logger) *App {
 	a.logger = logger
-	return &a
+	return a
 }
 
 // WithRouter attaches the provided Router to the app.
-func (a App) WithRouter(r router.Router) *App {
+func (a *App) WithRouter(r router.Router) *App {
 	a.router = r
-	return &a
+	return a
 }
 
 // WithHandler attaches the provided http.Handler to the app.
-func (a App) WithHandler(handler http.Handler) *App {
+func (a *App) WithHandler(handler http.Handler) *App {
 	a.handler = handler
-	return &a
+	return a
 }
 
 // WithShutdown registers the provided Shutdowner to the app.
-func (a App) WithShutdown(s Shutdowner) *App {
+func (a *App) WithShutdown(s Shutdowner) *App {
 	a.sd = append(a.sd, s)
-	return &a
+	return a
 }
 
 // WithHealthcheck registers the provided Shutdowner to the app.
-func (a App) WithHealthCheck(h HealthChecker) *App {
+func (a *App) WithHealthCheck(h HealthChecker) *App {
 	a.hc = append(a.hc, h)
-	return &a
+	return a
+}
+
+func (a *App) WithHealthCheckHandler(path string, mws ...Middleware) *App {
+	a.router.Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		HealthCheckHandler(a.hc...).ServeHTTP(w, r)
+	}))
+	return a
 }
 
 // ServeHTTP implements http.Handler. If the app has an attached handler, ServeHTTP proxies
@@ -87,19 +94,19 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.router.ServeHTTP(w, r)
 }
 
-// RouteModule attaches the routes from the provided module to the app, with the provided middleware,
+// WithModule attaches the routes from the provided module to the app, with the provided middleware,
 // health checks and shutdown funcs.
-func (a *App) RouteModule(m Module, mws ...Middleware) *App {
+func (a *App) WithModule(m Module, mws ...Middleware) *App {
 	if ty, ok := m.(HealthChecker); ok {
-		a = a.WithHealthCheck(ty)
+		a.WithHealthCheck(ty)
 	}
 
 	if ty, ok := m.(Shutdowner); ok {
-		a = a.WithShutdown(ty)
+		a.WithShutdown(ty)
 	}
 
 	if a.router == nil {
-		a.router = router.New()
+		a.WithRouter(router.New())
 	}
 
 	a.router.Group(func(r router.Router) {
@@ -109,10 +116,10 @@ func (a *App) RouteModule(m Module, mws ...Middleware) *App {
 	return a
 }
 
-func (a *App) HealthCheckers() []HealthChecker {
+func (a App) HealthCheckers() []HealthChecker {
 	return a.hc
 }
 
-func (a *App) Shutdowners() []Shutdowner {
+func (a App) Shutdowners() []Shutdowner {
 	return a.sd
 }

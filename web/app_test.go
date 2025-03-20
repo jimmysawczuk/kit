@@ -31,12 +31,16 @@ func TestBasicApp(t *testing.T) {
 
 type module struct{}
 
-var _ web.Module = module{}
+var (
+	_ web.Module        = module{}
+	_ web.HealthChecker = module{}
+	_ web.Shutdowner    = module{}
+)
 
 // Healthy implements web.Module.
-func (m module) HealthCheck(_ context.Context) error {
-	return nil
-}
+func (m module) HealthCheck(_ context.Context) error { return nil }
+func (m module) Shutdown(_ context.Context) error    { return nil }
+func (m module) Name() string                        { return "test" }
 
 // Route implements web.Module.
 func (m module) Route(r router.Router) {
@@ -60,8 +64,9 @@ func (m module) Route(r router.Router) {
 func TestModule(t *testing.T) {
 	mod := module{}
 
-	a := web.NewApp()
-	a.RouteModule(mod)
+	a := web.NewApp().
+		WithModule(mod).
+		WithHealthCheckHandler("/health")
 
 	srv := httptest.NewServer(a)
 
@@ -75,5 +80,15 @@ func TestModule(t *testing.T) {
 		resp, err := http.Post(srv.URL+"/world", "", nil)
 		require.NoError(t, err)
 		require.Equal(t, `{"hello":"universe"}`, strings.TrimSpace(getBody(resp.Body)))
+	}
+
+	require.Len(t, a.HealthCheckers(), 1)
+	require.Len(t, a.Shutdowners(), 1)
+
+	{
+		resp, err := http.Get(srv.URL + "/health")
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp.Body.Close()
 	}
 }
