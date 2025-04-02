@@ -64,6 +64,7 @@ func (c Config) MySQLConfig() (*mysql.Config, error) {
 	}
 
 	cfg := mysql.NewConfig()
+	cfg.Net = c.Net
 	cfg.Addr = c.addr()
 	cfg.DBName = c.DB
 	cfg.User = c.User
