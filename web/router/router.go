@@ -1,7 +1,6 @@
 package router
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -36,8 +35,6 @@ type Router interface {
 	Group(func(Router), ...Middleware)
 	Route(string, func(Router), ...Middleware)
 	Mount(string, http.Handler, ...Middleware)
-
-	URLParam(context.Context, string) string
 
 	Routes() []Route
 }
@@ -181,8 +178,4 @@ func (ro chiRouter) Routes() []Route {
 		return nil
 	})
 	return tbr
-}
-
-func (ro chiRouter) URLParam(ctx context.Context, key string) string {
-	return chi.RouteContext(ctx).URLParam(key)
 }
