@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jimmysawczuk/kit/web"
 	"github.com/jimmysawczuk/kit/web/respond"
 	"github.com/jimmysawczuk/kit/web/router"
@@ -91,4 +92,23 @@ func TestModule(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		resp.Body.Close()
 	}
+}
+
+func TestRouteCtx(t *testing.T) {
+	a := web.NewApp().Route(func(r router.Router) {
+		r.Get("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rctx := chi.RouteContext(r.Context())
+
+			v := rctx.URLParam("*")
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(v))
+		}))
+	})
+
+	srv := httptest.NewServer(a)
+
+	resp, err := http.Get(srv.URL + "/index.html")
+	require.NoError(t, err)
+	require.Equal(t, "index.html", getBody(resp.Body))
 }
