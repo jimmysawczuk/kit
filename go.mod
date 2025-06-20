@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go v1.55.6
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-sql-driver/mysql v1.9.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/rs/zerolog v1.33.0
