@@ -66,79 +66,83 @@ func (ro chiRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ro chiRouter) Method(method string, path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(method, path, handler)
+	if len(mws) > 0 {
+		ro.chi.Method(method, path, chain(handler, mws...))
+	} else {
+		ro.chi.Method(method, path, handler)
+	}
 }
 
 func (ro chiRouter) Connect(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodConnect, path, handler)
+	ro.Method(http.MethodConnect, path, handler, mws...)
 }
 
 func (ro chiRouter) Connectf(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodConnect, path, handler)
+	ro.Method(http.MethodConnect, path, handler, mws...)
 }
 
 func (ro chiRouter) Delete(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodDelete, path, handler)
+	ro.Method(http.MethodDelete, path, handler, mws...)
 }
 
 func (ro chiRouter) Deletef(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodDelete, path, handler)
+	ro.Method(http.MethodDelete, path, handler, mws...)
 }
 
 func (ro chiRouter) Get(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodGet, path, handler)
+	ro.Method(http.MethodGet, path, handler, mws...)
 }
 
 func (ro chiRouter) Getf(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodGet, path, handler)
+	ro.Method(http.MethodGet, path, handler, mws...)
 }
 
 func (ro chiRouter) Head(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodHead, path, handler)
+	ro.Method(http.MethodHead, path, handler, mws...)
 }
 
 func (ro chiRouter) Headf(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodHead, path, handler)
+	ro.Method(http.MethodHead, path, handler, mws...)
 }
 
 func (ro chiRouter) Options(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodOptions, path, handler)
+	ro.Method(http.MethodOptions, path, handler, mws...)
 }
 
 func (ro chiRouter) Optionsf(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodOptions, path, handler)
+	ro.Method(http.MethodOptions, path, handler, mws...)
 }
 
 func (ro chiRouter) Patch(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodPatch, path, handler)
+	ro.Method(http.MethodPatch, path, handler, mws...)
 }
 
 func (ro chiRouter) Patchf(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodPatch, path, handler)
+	ro.Method(http.MethodPatch, path, handler, mws...)
 }
 
 func (ro chiRouter) Post(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodPost, path, handler)
+	ro.Method(http.MethodPost, path, handler, mws...)
 }
 
 func (ro chiRouter) Postf(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodPost, path, handler)
+	ro.Method(http.MethodPost, path, handler, mws...)
 }
 
 func (ro chiRouter) Put(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodPut, path, handler)
+	ro.Method(http.MethodPut, path, handler, mws...)
 }
 
 func (ro chiRouter) Putf(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodPut, path, handler)
+	ro.Method(http.MethodPut, path, handler, mws...)
 }
 
 func (ro chiRouter) Trace(path string, handler http.Handler, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodTrace, path, handler)
+	ro.Method(http.MethodTrace, path, handler, mws...)
 }
 
 func (ro chiRouter) Tracef(path string, handler http.HandlerFunc, mws ...Middleware) {
-	ro.chi.With(mws...).Method(http.MethodTrace, path, handler)
+	ro.Method(http.MethodTrace, path, handler, mws...)
 }
 
 func (ro chiRouter) Group(f func(Router), mws ...Middleware) {
@@ -178,4 +182,12 @@ func (ro chiRouter) Routes() []Route {
 		return nil
 	})
 	return tbr
+}
+
+// chain applies middlewares to a handler
+func chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler {
+	for i := len(mws) - 1; i >= 0; i-- {
+		h = mws[i](h)
+	}
+	return h
 }
