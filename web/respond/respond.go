@@ -12,6 +12,7 @@ type Responder interface {
 }
 
 type Response interface {
+	WithHeader(func(http.Header) http.Header)
 	Write(w http.ResponseWriter) error
 }
 
