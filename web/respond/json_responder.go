@@ -93,7 +93,7 @@ func (jr *JSONResponder) CodedError(ctx context.Context, httpStatus int, code st
 
 // WithSuccess writes the provided response to the ResponseWriter (unwrapped) and sets the provided HTTP response status.
 func (jr *JSONResponder) Success(ctx context.Context, httpStatus int, body any) Response {
-	resp := JSONResponse{
+	resp := &JSONResponse{
 		ctx:    ctx,
 		header: http.Header{},
 		status: httpStatus,
@@ -112,7 +112,11 @@ func (jr *JSONResponder) Success(ctx context.Context, httpStatus int, body any) 
 	return resp
 }
 
-func (r JSONResponse) Write(w http.ResponseWriter) error {
+func (r *JSONResponse) WithHeader(f func(h http.Header) http.Header) {
+	r.header = f(r.header)
+}
+
+func (r *JSONResponse) Write(w http.ResponseWriter) error {
 	log := zerolog.Ctx(r.ctx)
 
 	for h := range r.header {

@@ -219,3 +219,149 @@ func TestRespondWithErrorSuppressed(t *testing.T) {
 		})
 	}
 }
+
+func TestWithHeader(t *testing.T) {
+	tests := []struct {
+		name           string
+		handler        http.Handler
+		expectedStatus int
+		expectedHeader string
+		expectedValue  string
+	}{
+		{
+			name: "SUCCESS_WITH_CUSTOM_HEADER",
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				resp := respond.Success(ctx, http.StatusOK, struct {
+					Success bool `json:"success"`
+				}{
+					Success: true,
+				})
+				resp.WithHeader(func(h http.Header) http.Header {
+					h.Set("X-Custom-Header", "custom-value")
+					return h
+				})
+				resp.Write(w)
+			}),
+			expectedStatus: http.StatusOK,
+			expectedHeader: "X-Custom-Header",
+			expectedValue:  "custom-value",
+		},
+		{
+			name: "ERROR_WITH_CUSTOM_HEADER",
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				resp := respond.Error(ctx, http.StatusBadRequest, errors.New("bad request"))
+				resp.WithHeader(func(h http.Header) http.Header {
+					h.Set("X-Error-Code", "ERR_400")
+					return h
+				})
+				resp.Write(w)
+			}),
+			expectedStatus: http.StatusBadRequest,
+			expectedHeader: "X-Error-Code",
+			expectedValue:  "ERR_400",
+		},
+		{
+			name: "SUCCESS_WITH_MULTIPLE_HEADERS",
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				resp := respond.Success(ctx, http.StatusOK, struct {
+					Data string `json:"data"`
+				}{
+					Data: "test",
+				})
+				resp.WithHeader(func(h http.Header) http.Header {
+					h.Set("X-Header-1", "value1")
+					h.Set("X-Header-2", "value2")
+					h.Add("X-Header-3", "value3a")
+					h.Add("X-Header-3", "value3b")
+					return h
+				})
+				resp.Write(w)
+			}),
+			expectedStatus: http.StatusOK,
+			expectedHeader: "X-Header-1",
+			expectedValue:  "value1",
+		},
+		{
+			name: "SUCCESS_WITH_CACHE_CONTROL",
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				resp := respond.Success(ctx, http.StatusOK, struct {
+					Data string `json:"data"`
+				}{
+					Data: "cached",
+				})
+				resp.WithHeader(func(h http.Header) http.Header {
+					h.Set("Cache-Control", "max-age=3600")
+					return h
+				})
+				resp.Write(w)
+			}),
+			expectedStatus: http.StatusOK,
+			expectedHeader: "Cache-Control",
+			expectedValue:  "max-age=3600",
+		},
+		{
+			name: "SUCCESS_PRESERVES_CONTENT_TYPE",
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				resp := respond.Success(ctx, http.StatusOK, struct {
+					Data string `json:"data"`
+				}{
+					Data: "test",
+				})
+				resp.WithHeader(func(h http.Header) http.Header {
+					h.Set("X-Custom", "value")
+					return h
+				})
+				resp.Write(w)
+			}),
+			expectedStatus: http.StatusOK,
+			expectedHeader: "Content-Type",
+			expectedValue:  "application/json; charset=utf-8",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			srv := httptest.NewServer(test.handler)
+			defer srv.Close()
+
+			req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+			require.NoError(t, err)
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			require.Equal(t, test.expectedStatus, resp.StatusCode)
+			require.Equal(t, test.expectedValue, resp.Header.Get(test.expectedHeader))
+		})
+	}
+}
+
+func TestWithHeaderMultipleValues(t *testing.T) {
+	handler := web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+		resp := respond.Success(ctx, http.StatusOK, struct {
+			Data string `json:"data"`
+		}{
+			Data: "test",
+		})
+		resp.WithHeader(func(h http.Header) http.Header {
+			h.Add("X-Multiple", "value1")
+			h.Add("X-Multiple", "value2")
+			return h
+		})
+		resp.Write(w)
+	})
+
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	values := resp.Header.Values("X-Multiple")
+	require.Len(t, values, 2)
+	require.Contains(t, values, "value1")
+	require.Contains(t, values, "value2")
+}
