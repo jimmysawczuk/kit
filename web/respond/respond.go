@@ -30,6 +30,6 @@ func CodedError(ctx context.Context, httpStatus int, code string, err error) Res
 }
 
 // Success is a shortcut for DefaultResponder.Success.
-func Success(ctx context.Context, httpStatus int, v interface{}) Response {
+func Success(ctx context.Context, httpStatus int, v any) Response {
 	return DefaultResponder.Success(ctx, httpStatus, v)
 }

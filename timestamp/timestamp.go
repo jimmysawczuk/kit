@@ -113,7 +113,7 @@ func (t Timestamp) Value() (driver.Value, error) {
 }
 
 // Scan implements driver.Scanner.
-func (t *Timestamp) Scan(in interface{}) error {
+func (t *Timestamp) Scan(in any) error {
 	if in == nil {
 		t.Time = time.Time{}
 		t.Valid = false

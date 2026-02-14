@@ -58,7 +58,7 @@ func TestTimestamp(t *testing.T) {
 
 func TestScan(t *testing.T) {
 	tests := []struct {
-		in     interface{}
+		in     any
 		out    timestamp.Timestamp
 		hasErr bool
 	}{
