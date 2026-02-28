@@ -67,6 +67,63 @@ func TestRouteParamsWithoutMiddleware(t *testing.T) {
 	}
 }
 
+type authModule struct{}
+
+func (m authModule) Route(r router.Router) {
+	r.Getf("/login", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	r.Getf("/logout", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+func TestBind(t *testing.T) {
+	r := router.New()
+	r.Bind("/v1/auth", authModule{})
+
+	for _, tt := range []struct {
+		path string
+		want int
+	}{
+		{"/v1/auth/login", http.StatusOK},
+		{"/v1/auth/logout", http.StatusNoContent},
+		{"/v1/auth/missing", http.StatusNotFound},
+	} {
+		req := httptest.NewRequest("GET", tt.path, nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != tt.want {
+			t.Errorf("GET %s: expected %d, got %d", tt.path, tt.want, rec.Code)
+		}
+	}
+}
+
+func TestBindWithMiddleware(t *testing.T) {
+	r := router.New()
+
+	var middlewareCalled bool
+	trackMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middlewareCalled = true
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	r.Bind("/v1/auth", authModule{}, trackMiddleware)
+
+	req := httptest.NewRequest("GET", "/v1/auth/login", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+	if !middlewareCalled {
+		t.Error("expected middleware to be called")
+	}
+}
+
 func TestNestedRouteParamsWithMiddleware(t *testing.T) {
 	r := router.New()
 

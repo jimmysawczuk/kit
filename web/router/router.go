@@ -8,6 +8,10 @@ import (
 
 type Middleware = func(http.Handler) http.Handler
 
+type Module interface {
+	Route(Router)
+}
+
 type Router interface {
 	http.Handler
 
@@ -35,6 +39,7 @@ type Router interface {
 	Group(func(Router), ...Middleware)
 	Route(string, func(Router), ...Middleware)
 	Mount(string, http.Handler, ...Middleware)
+	Bind(string, Module, ...Middleware)
 
 	Routes() []Route
 }
@@ -159,6 +164,12 @@ func (ro chiRouter) Route(path string, f func(Router), mws ...Middleware) {
 		rr.Use(mws...)
 		f(rr)
 	})
+}
+
+func (ro chiRouter) Bind(prefix string, m Module, mws ...Middleware) {
+	ro.Route(prefix, func(r Router) {
+		m.Route(r)
+	}, mws...)
 }
 
 func (ro chiRouter) Mount(path string, h http.Handler, mws ...Middleware) {
