@@ -31,57 +31,73 @@ func assignFakeRequestID(h http.Handler) http.Handler {
 func TestRespondWithSuccess(t *testing.T) {
 	tests := []struct {
 		name              string
-		handler           http.Handler
+		build             func(ctx context.Context) respond.Response
 		expectedStatus    int
 		expectedRequestID string
 		expectedOutput    string
+		expectedWriteErr  bool
 	}{
 		{
 			name: "200_RESPONSE",
-			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
-				respond.Success(ctx, http.StatusOK, struct {
+			build: func(ctx context.Context) respond.Response {
+				return respond.Success(ctx, http.StatusOK, struct {
 					Success bool `json:"success"`
 				}{
 					Success: true,
-				}).Write(w)
-			}),
+				})
+			},
 			expectedStatus: http.StatusOK,
 			expectedOutput: `{"success":true}`,
 		},
 		{
 			name: "201_RESPONSE",
-			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+			build: func(ctx context.Context) respond.Response {
 				ctx = requestid.Set(ctx, "FakeID")
-				respond.Success(ctx, http.StatusCreated, struct {
+				return respond.Success(ctx, http.StatusCreated, struct {
 					Status string `json:"status"`
 				}{
 					Status: "created",
-				}).Write(w)
-			}),
+				})
+			},
 			expectedStatus:    http.StatusCreated,
 			expectedRequestID: "FakeID",
 			expectedOutput:    `{"status":"created"}`,
+		},
+		{
+			name: "204_NO_CONTENT",
+			build: func(ctx context.Context) respond.Response {
+				return respond.Success(ctx, http.StatusNoContent, nil)
+			},
+			expectedStatus: http.StatusNoContent,
+			expectedOutput: ``,
+		},
+		{
+			name: "204_NO_CONTENT_WITH_BODY_IGNORED",
+			build: func(ctx context.Context) respond.Response {
+				return respond.Success(ctx, http.StatusNoContent, struct {
+					Data string `json:"data"`
+				}{
+					Data: "should not appear",
+				})
+			},
+			expectedStatus: http.StatusNoContent,
+			expectedOutput: ``,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			srv := httptest.NewServer(test.handler)
-			defer srv.Close()
-
-			req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
-			require.NoError(t, err)
-
-			resp, err := http.DefaultClient.Do(req)
-			require.NoError(t, err)
-			require.Equal(t, test.expectedStatus, resp.StatusCode)
-			require.Equal(t, test.expectedRequestID, resp.Header.Get("X-Request-Id"))
-
-			buf := bytes.Buffer{}
-			_, err = io.Copy(&buf, resp.Body)
-			require.NoError(t, err)
-
-			require.Equal(t, test.expectedOutput, strings.TrimSpace(buf.String()))
+			w := httptest.NewRecorder()
+			resp := test.build(context.Background())
+			err := resp.Write(w)
+			if test.expectedWriteErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, test.expectedStatus, w.Code)
+			require.Equal(t, test.expectedRequestID, w.Header().Get("X-Request-Id"))
+			require.Equal(t, test.expectedOutput, strings.TrimSpace(w.Body.String()))
 		})
 	}
 }

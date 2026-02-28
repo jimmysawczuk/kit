@@ -145,6 +145,11 @@ func (r *JSONResponse) Write(w http.ResponseWriter) error {
 	}
 
 	w.WriteHeader(r.status)
+
+	if r.status == http.StatusNoContent {
+		return nil
+	}
+
 	if _, err := w.Write(by); err != nil {
 		werr := fmt.Errorf("response writer: write: %w", err)
 		log.Err(werr).Msg("json response: couldn't write")
