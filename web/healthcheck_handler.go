@@ -8,14 +8,13 @@ import (
 
 	"github.com/jimmysawczuk/kit/web/respond"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 // Health is a Handler checks the health of the App by checking all of the app's HealthCheckers sequentially,
 // emitting a 503 if any return an error or the check cannot complete within the specified duration. If timeout <= 0,
 // there is no timeout.
 func HealthCheckHandler(hc ...HealthChecker) Handler {
-	return func(ctx context.Context, l *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+	return func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 		m := sync.Map{}
 
 		wg := sync.WaitGroup{}
@@ -45,7 +44,7 @@ func HealthCheckHandler(hc ...HealthChecker) Handler {
 
 		go func() {
 			wg.Wait()
-			wgDone <- struct{}{}
+			close(wgDone)
 		}()
 
 		healthy := true

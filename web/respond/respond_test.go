@@ -212,10 +212,12 @@ func TestRespondWithErrorSuppressed(t *testing.T) {
 		},
 	}
 
+	orig := respond.DefaultResponder
+	respond.DefaultResponder = &respond.JSONResponder{SuppressErrors: true}
+	t.Cleanup(func() { respond.DefaultResponder = orig })
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			respond.DefaultResponder = &respond.JSONResponder{SuppressErrors: true}
-
 			srv := httptest.NewServer(test.handler)
 			defer srv.Close()
 

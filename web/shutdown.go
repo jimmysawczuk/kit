@@ -77,7 +77,7 @@ func Shutdown(timeout time.Duration, log *zerolog.Logger, sig chan os.Signal, st
 
 	go func() {
 		wg.Wait()
-		wgDone <- struct{}{}
+		close(wgDone)
 	}()
 
 	select {
