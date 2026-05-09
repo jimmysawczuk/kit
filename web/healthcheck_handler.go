@@ -14,7 +14,7 @@ import (
 // emitting a 503 if any return an error or the check cannot complete within the specified duration. If timeout <= 0,
 // there is no timeout.
 func HealthCheckHandler(hc ...HealthChecker) Handler {
-	return func(ctx context.Context, l *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+	return func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 		m := sync.Map{}
 
 		wg := sync.WaitGroup{}
@@ -27,7 +27,7 @@ func HealthCheckHandler(hc ...HealthChecker) Handler {
 			go func() {
 				err := h.HealthCheck(ctx)
 				if err != nil {
-					l.Error().
+					log.Error().
 						Err(err).
 						Type("type", h).
 						Str("name", h.Name()).
