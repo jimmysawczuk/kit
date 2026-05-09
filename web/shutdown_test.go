@@ -51,10 +51,7 @@ func TestShutdown(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), test.Timeout)
-			defer cancel()
-
-			go web.Shutdown(ctx, &log, sig, stop, done, test.Shutdowners...)
+			go web.Shutdown(test.Timeout, &log, sig, stop, done, test.Shutdowners...)
 
 			stop <- true
 
