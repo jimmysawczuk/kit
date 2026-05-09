@@ -13,6 +13,7 @@ type Responder interface {
 
 type Response interface {
 	WithHeader(func(http.Header) http.Header)
+	WithCookie(*http.Cookie)
 	Write(w http.ResponseWriter) error
 }
 

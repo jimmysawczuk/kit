@@ -351,6 +351,66 @@ func TestWithHeader(t *testing.T) {
 	}
 }
 
+func TestWithCookie(t *testing.T) {
+	tests := []struct {
+		name            string
+		handler         http.Handler
+		expectedStatus  int
+		expectedCookies []*http.Cookie
+	}{
+		{
+			name: "SINGLE_COOKIE",
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				resp := respond.Success(ctx, http.StatusOK, struct {
+					Success bool `json:"success"`
+				}{Success: true})
+				resp.WithCookie(&http.Cookie{Name: "session", Value: "abc123", HttpOnly: true})
+				resp.Write(w)
+			}),
+			expectedStatus: http.StatusOK,
+			expectedCookies: []*http.Cookie{
+				{Name: "session", Value: "abc123", HttpOnly: true},
+			},
+		},
+		{
+			name: "MULTIPLE_COOKIES",
+			handler: web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
+				resp := respond.Success(ctx, http.StatusOK, struct {
+					Success bool `json:"success"`
+				}{Success: true})
+				resp.WithCookie(&http.Cookie{Name: "session", Value: "abc123", HttpOnly: true})
+				resp.WithCookie(&http.Cookie{Name: "theme", Value: "dark"})
+				resp.Write(w)
+			}),
+			expectedStatus: http.StatusOK,
+			expectedCookies: []*http.Cookie{
+				{Name: "session", Value: "abc123", HttpOnly: true},
+				{Name: "theme", Value: "dark"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			srv := httptest.NewServer(test.handler)
+			defer srv.Close()
+
+			req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+			require.NoError(t, err)
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			require.Equal(t, test.expectedStatus, resp.StatusCode)
+			require.Len(t, resp.Cookies(), len(test.expectedCookies))
+			for i, c := range test.expectedCookies {
+				require.Equal(t, c.Name, resp.Cookies()[i].Name)
+				require.Equal(t, c.Value, resp.Cookies()[i].Value)
+				require.Equal(t, c.HttpOnly, resp.Cookies()[i].HttpOnly)
+			}
+		})
+	}
+}
+
 func TestWithHeaderMultipleValues(t *testing.T) {
 	handler := web.Handler(func(ctx context.Context, log *zerolog.Logger, w http.ResponseWriter, r *http.Request) {
 		resp := respond.Success(ctx, http.StatusOK, struct {

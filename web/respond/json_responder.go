@@ -17,10 +17,11 @@ type JSONResponder struct {
 }
 
 type JSONResponse struct {
-	ctx    context.Context
-	status int
-	header http.Header
-	body   any
+	ctx     context.Context
+	status  int
+	header  http.Header
+	cookies []*http.Cookie
+	body    any
 }
 
 type ErrorResponse struct {
@@ -116,6 +117,10 @@ func (r *JSONResponse) WithHeader(f func(h http.Header) http.Header) {
 	r.header = f(r.header)
 }
 
+func (r *JSONResponse) WithCookie(c *http.Cookie) {
+	r.cookies = append(r.cookies, c)
+}
+
 func (r *JSONResponse) Write(w http.ResponseWriter) error {
 	log := zerolog.Ctx(r.ctx)
 
@@ -123,6 +128,10 @@ func (r *JSONResponse) Write(w http.ResponseWriter) error {
 		for _, v := range r.header[h] {
 			w.Header().Add(h, v)
 		}
+	}
+
+	for _, c := range r.cookies {
+		http.SetCookie(w, c)
 	}
 
 	by, err := json.Marshal(r.body)
