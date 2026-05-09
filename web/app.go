@@ -73,9 +73,7 @@ func (a *App) WithHealthCheck(h HealthChecker) *App {
 }
 
 func (a *App) WithHealthCheckHandler(path string, mws ...Middleware) *App {
-	a.router.Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		HealthCheckHandler(a.hc...).ServeHTTP(w, r)
-	}))
+	a.router.Get(path, HealthCheckHandler(a.hc...), mws...)
 	return a
 }
 
