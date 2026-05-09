@@ -8,7 +8,6 @@ import (
 
 	"github.com/jimmysawczuk/kit/web/respond"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 // Health is a Handler checks the health of the App by checking all of the app's HealthCheckers sequentially,
@@ -28,7 +27,7 @@ func HealthCheckHandler(hc ...HealthChecker) Handler {
 			go func() {
 				err := h.HealthCheck(ctx)
 				if err != nil {
-					log.Error().
+					l.Error().
 						Err(err).
 						Type("type", h).
 						Str("name", h.Name()).
@@ -45,7 +44,7 @@ func HealthCheckHandler(hc ...HealthChecker) Handler {
 
 		go func() {
 			wg.Wait()
-			wgDone <- struct{}{}
+			close(wgDone)
 		}()
 
 		healthy := true

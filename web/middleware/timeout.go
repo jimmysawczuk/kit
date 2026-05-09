@@ -1,11 +1,10 @@
 package middleware
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	rdebug "runtime/debug"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jimmysawczuk/kit/web/respond"
@@ -50,19 +49,13 @@ func WithTimeout(timeout time.Duration) func(http.Handler) http.Handler {
 
 			select {
 			case <-doneCh:
-				tw.mx.Lock()
-				tw.done = true
-				tw.mx.Unlock()
+				tw.done.Store(true)
 			case <-time.After(timeout):
-				tw.mx.Lock()
-				respond.Error(ctx, http.StatusGatewayTimeout, fmt.Errorf("timed out after %s", timeout))
-				tw.done = true
-				tw.mx.Unlock()
+				respond.Error(ctx, http.StatusGatewayTimeout, fmt.Errorf("timed out after %s", timeout)).Write(w)
+				tw.done.Store(true)
 			case perr := <-panicCh:
-				tw.mx.Lock()
-				respond.Error(ctx, http.StatusInternalServerError, perr)
-				tw.done = true
-				tw.mx.Unlock()
+				respond.Error(ctx, http.StatusInternalServerError, perr).Write(w)
+				tw.done.Store(true)
 			}
 		})
 	}
@@ -73,14 +66,13 @@ func WithTimeout(timeout time.Duration) func(http.Handler) http.Handler {
 type timeoutWriter struct {
 	http.ResponseWriter
 
-	mx   sync.Mutex
-	done bool
+	done atomic.Bool
 }
 
 // Header implements http.ResponseWriter. If we haven't timed out yet, proxy this to the normal ResponseWriter.
 // Otherwise, fake it.
 func (tw *timeoutWriter) Header() http.Header {
-	if tw.done {
+	if tw.done.Load() {
 		return map[string][]string{}
 	}
 
@@ -90,7 +82,7 @@ func (tw *timeoutWriter) Header() http.Header {
 // WriteHeader implements http.ResponseWriter. If we haven't timed out yet, proxy this to the normal ResponseWriter.
 // Otherwise, fake it.
 func (tw *timeoutWriter) WriteHeader(status int) {
-	if tw.done {
+	if tw.done.Load() {
 		return
 	}
 
@@ -98,10 +90,10 @@ func (tw *timeoutWriter) WriteHeader(status int) {
 }
 
 // Write implements http.ResponseWriter. If we haven't timed out yet, proxy this to the normal ResponseWriter.
-// Otherwise, this returns an error saying the time for writing has passed.
+// Otherwise, this is a no-op.
 func (tw *timeoutWriter) Write(b []byte) (int, error) {
-	if tw.done {
-		return 0, errors.New("ResponseWriter already written")
+	if tw.done.Load() {
+		return 0, nil
 	}
 
 	return tw.ResponseWriter.Write(b)
