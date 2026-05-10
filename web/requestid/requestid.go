@@ -14,8 +14,6 @@ type ctxKey int
 
 const (
 	requestIDKey ctxKey = 1 << iota
-
-	defaultLength int = 8
 )
 
 // RandomPrefix returns a random prefix, a base64-encoded string of length bytes.
