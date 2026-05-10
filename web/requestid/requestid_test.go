@@ -1,15 +1,17 @@
-package requestid
+package requestid_test
 
 import (
 	"context"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/jimmysawczuk/kit/web/requestid"
 )
 
 func TestRandomPrefix(t *testing.T) {
-	p1 := RandomPrefix(defaultLength)
-	p2 := RandomPrefix(defaultLength)
+	p1 := requestid.RandomPrefix(8)
+	p2 := requestid.RandomPrefix(8)
 
 	if p1 == p2 {
 		t.Fatal("expected different prefixes, got equal")
@@ -20,7 +22,7 @@ func TestRandomPrefix(t *testing.T) {
 }
 
 func TestHostnamePrefix(t *testing.T) {
-	p := HostnamePrefix(defaultLength)
+	p := requestid.HostnamePrefix(8)
 	if !strings.Contains(p, "/") {
 		t.Fatalf("expected hostname/random format, got %q", p)
 	}
@@ -34,7 +36,7 @@ func TestHostnamePrefix(t *testing.T) {
 }
 
 func TestGenerator_Next_GeneratesSequentialIDs(t *testing.T) {
-	g := &Generator{Prefix: "test"}
+	g := &requestid.Generator{Prefix: "test"}
 
 	r1, _ := http.NewRequest(http.MethodGet, "/", nil)
 	r2, _ := http.NewRequest(http.MethodGet, "/", nil)
@@ -51,7 +53,7 @@ func TestGenerator_Next_GeneratesSequentialIDs(t *testing.T) {
 }
 
 func TestGenerator_Next_RespectsIncomingHeader(t *testing.T) {
-	g := &Generator{Prefix: "test"}
+	g := &requestid.Generator{Prefix: "test"}
 
 	r, _ := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Request-Id", "incoming-id-123")
@@ -63,7 +65,7 @@ func TestGenerator_Next_RespectsIncomingHeader(t *testing.T) {
 }
 
 func TestGenerator_SetAndGet(t *testing.T) {
-	g := &Generator{Prefix: "test"}
+	g := &requestid.Generator{Prefix: "test"}
 	ctx := context.Background()
 
 	if got := g.Get(ctx); got != "" {
@@ -77,7 +79,7 @@ func TestGenerator_SetAndGet(t *testing.T) {
 }
 
 func TestGenerator_SetDoesNotMutateParent(t *testing.T) {
-	g := &Generator{Prefix: "test"}
+	g := &requestid.Generator{Prefix: "test"}
 	parent := context.Background()
 	_ = g.Set(parent, "req-001")
 
@@ -90,12 +92,12 @@ func TestPackageLevelFunctions(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Request-Id", "pkg-level-id")
 
-	if id := Next(r); id != "pkg-level-id" {
+	if id := requestid.Next(r); id != "pkg-level-id" {
 		t.Fatalf("expected pkg-level-id, got %q", id)
 	}
 
-	ctx := Set(context.Background(), "pkg-test")
-	if got := Get(ctx); got != "pkg-test" {
+	ctx := requestid.Set(context.Background(), "pkg-test")
+	if got := requestid.Get(ctx); got != "pkg-test" {
 		t.Fatalf("expected pkg-test, got %q", got)
 	}
 }
