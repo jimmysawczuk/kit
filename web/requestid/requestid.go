@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"sync/atomic"
 )
 
@@ -17,31 +16,29 @@ const (
 	requestIDKey ctxKey = 1 << iota
 )
 
-// RandomPrefix returns a random prefix, a hexadecimal string of length len.
-func RandomPrefix(len int) string {
-	by := make([]byte, len/2)
-	rand.Read(by)
-	return fmt.Sprintf("%x", by)
+// RandomPrefix returns a random prefix, a base64-encoded string of length bytes.
+func RandomPrefix(length int) string {
+	buf := make([]byte, length)
+	rand.Read(buf)
+
+	return fmt.Sprintf("%s", base64.RawURLEncoding.EncodeToString(buf))
 }
 
-// HostnamePrefix returns a prefix based on the system's hostname, of the format:
+// HostnamePrefix returns a prefix based on the system's hostname, in the following format:
 //
-// <hostname>/<10 random bytes>
-func HostnamePrefix() string {
+// <hostname>/<random string>
+//
+// The random string is length bytes, base64-encoded.
+func HostnamePrefix(length int) string {
 	hostname, err := os.Hostname()
 	if hostname == "" || err != nil {
 		hostname = "localhost"
 	}
 
-	var buf [12]byte
-	var b64 string
-	for len(b64) < 10 {
-		rand.Read(buf[:])
-		b64 = base64.StdEncoding.EncodeToString(buf[:])
-		b64 = strings.NewReplacer("+", "", "/", "").Replace(b64)
-	}
+	buf := make([]byte, length)
+	rand.Read(buf)
 
-	return fmt.Sprintf("%s/%s", hostname, b64[0:10])
+	return fmt.Sprintf("%s/%s", hostname, base64.RawURLEncoding.EncodeToString(buf))
 }
 
 // Generator generates request IDs with the set prefix.
@@ -53,8 +50,8 @@ type Generator struct {
 
 // DefaultGenerator is the default ID generator, using the hostname and some random bytes as
 // its prefix.
-var DefaultGenerator = Generator{
-	Prefix: HostnamePrefix(),
+var DefaultGenerator = &Generator{
+	Prefix: HostnamePrefix(8),
 }
 
 // Next checks the passed request for an incoming request ID; if its set, that's the request ID we use.
