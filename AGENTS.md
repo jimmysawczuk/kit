@@ -78,17 +78,18 @@ Wrapper around Chi router providing:
 - `Group()` for middleware-scoped route grouping
 - `Route()` for path-prefixed route grouping
 - `Mount()` for sub-handler mounting
+- `Bind(prefix, Module, ...Middleware)` for mounting a Module at a path prefix with optional middleware
 
 #### Respond Package
 
 Pluggable response handling system (`web/respond/`):
 
 - **Responder** interface allows custom response strategies (defaults to JSONResponder)
-- **Response** interface represents an HTTP response
+- **Response** interface represents an HTTP response; supports `WithHeader()`, `WithCookie()`, and `Write()`
 - JSONResponder provides:
   - `Error()` - HTTP error with error message
   - `CodedError()` - Error with optional error code (e.g., "INVALID_TOKEN")
-  - `Success()` - Successful response with status code and body
+  - `Success()` - Successful response with status code and body; 204 No Content skips body serialization
 
 Error response format:
 ```json
@@ -106,9 +107,11 @@ Error response format:
 #### Request ID
 
 Distributed tracing support (`web/requestid/`):
-- Checks incoming `X-Request-Id` header first
-- Generates sequential IDs with configurable prefix (hostname + random by default) if not provided
-- Integrates with zerolog for automatic logging
+- `Generator` struct with a `Prefix` string and atomic counter; call `.Next(r)`, `.Get(ctx)`, `.Set(ctx, id)`
+- `DefaultGenerator` (`*Generator`) uses `HostnamePrefix(8)` by default (`<hostname>/<base64>`)
+- `RandomPrefix(length int)` and `HostnamePrefix(length int)` helpers for custom prefixes
+- Package-level `Next()`, `Get()`, `Set()` functions delegate to `DefaultGenerator`
+- Checks incoming `X-Request-Id` header first; generates sequential `<prefix>-<9-digit-counter>` if absent
 
 #### Health Checks & Shutdown
 
