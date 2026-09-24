@@ -148,6 +148,12 @@ Middleware uses standard `func(http.Handler) http.Handler` signature and is comp
 
 - **dtable**: DynamoDB table wrapper with convenience methods and automatic logging
 
+- **cloudwatchlog**: Builds an `io.WriteCloser` that ships log lines to CloudWatch Logs (e.g. via `zerolog.MultiLevelWriter`), wrapping `github.com/lzap/cloudwatchwriter2`
+  - `NewWriter(ctx, logGroup, streamName, ...Option)` - stream naming is the caller's concern, not baked into the constructor
+  - `WithBatchInterval()`, `WithConfigOptions()` functional options
+  - `FlyStreamName()` - Fly machine ID, falling back to hostname+ulid off Fly
+  - Uses aws-sdk-go-v2 (cloudwatchwriter2's requirement), unlike ssm/dtable's v1 SDK
+
 ## Testing
 
 The codebase uses testify for assertions. Tests should:
