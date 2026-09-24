@@ -150,7 +150,7 @@ Middleware uses standard `func(http.Handler) http.Handler` signature and is comp
   - `NewWriter(ctx, logGroup, streamName, ...Option)` - stream naming is the caller's concern, not baked into the constructor
   - `WithBatchInterval()`, `WithConfigOptions()` functional options
   - `FlyStreamName()` - Fly machine ID, falling back to hostname+ulid off Fly
-  - Uses aws-sdk-go-v2 (cloudwatchwriter2's requirement), unlike ssm's v1 SDK
+  - Uses aws-sdk-go-v2 (cloudwatchwriter2's requirement)
 
 ## Testing
 

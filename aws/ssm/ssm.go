@@ -6,9 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
 type Config struct {
@@ -21,40 +22,33 @@ type Param struct {
 }
 
 func GetParametersFromPath(ctx context.Context, path string) ([]Param, error) {
-	sess, err := session.NewSession()
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("session: new session: %w", err)
+		return nil, fmt.Errorf("load aws config: %w", err)
 	}
 
-	ssmClient := ssm.New(sess)
+	ssmClient := ssm.NewFromConfig(awsCfg)
 
-	var tok *string
-	var params []*ssm.Parameter
+	var params []types.Parameter
 
-	for {
-		res, err := ssmClient.GetParametersByPathWithContext(ctx, &ssm.GetParametersByPathInput{
-			NextToken:      tok,
-			Path:           aws.String(path),
-			WithDecryption: aws.Bool(true),
-		})
+	pager := ssm.NewGetParametersByPathPaginator(ssmClient, &ssm.GetParametersByPathInput{
+		Path:           aws.String(path),
+		WithDecryption: aws.Bool(true),
+	})
+	for pager.HasMorePages() {
+		res, err := pager.NextPage(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("ssm: get parameters by path: %w", err)
 		}
 
 		params = append(params, res.Parameters...)
-
-		if res.NextToken == nil {
-			break
-		}
-
-		tok = res.NextToken
 	}
 
 	tbr := make([]Param, len(params))
 	for i, p := range params {
 		tbr[i] = Param{
-			Name:  strings.TrimLeft(strings.Replace(aws.StringValue(p.Name), path, "", 1), "/"),
-			Value: aws.StringValue(p.Value),
+			Name:  strings.TrimLeft(strings.Replace(aws.ToString(p.Name), path, "", 1), "/"),
+			Value: aws.ToString(p.Value),
 		}
 	}
 
