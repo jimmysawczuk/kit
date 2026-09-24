@@ -7,31 +7,16 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
-type Config struct {
-	Path string `envconfig:"SSM_PATH"`
-}
+// GetParametersFromPath returns the decrypted parameters directly under path,
+// keyed by name with the path prefix stripped.
+func GetParametersFromPath(ctx context.Context, client ssm.GetParametersByPathAPIClient, path string) (map[string]string, error) {
+	prefix := strings.TrimSuffix(path, "/") + "/"
+	params := map[string]string{}
 
-type Param struct {
-	Name  string
-	Value string
-}
-
-func GetParametersFromPath(ctx context.Context, path string) ([]Param, error) {
-	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("load aws config: %w", err)
-	}
-
-	ssmClient := ssm.NewFromConfig(awsCfg)
-
-	var params []types.Parameter
-
-	pager := ssm.NewGetParametersByPathPaginator(ssmClient, &ssm.GetParametersByPathInput{
+	pager := ssm.NewGetParametersByPathPaginator(client, &ssm.GetParametersByPathInput{
 		Path:           aws.String(path),
 		WithDecryption: aws.Bool(true),
 	})
@@ -41,23 +26,19 @@ func GetParametersFromPath(ctx context.Context, path string) ([]Param, error) {
 			return nil, fmt.Errorf("ssm: get parameters by path: %w", err)
 		}
 
-		params = append(params, res.Parameters...)
-	}
-
-	tbr := make([]Param, len(params))
-	for i, p := range params {
-		tbr[i] = Param{
-			Name:  strings.TrimLeft(strings.Replace(aws.ToString(p.Name), path, "", 1), "/"),
-			Value: aws.ToString(p.Value),
+		for _, p := range res.Parameters {
+			params[strings.TrimPrefix(aws.ToString(p.Name), prefix)] = aws.ToString(p.Value)
 		}
 	}
 
-	return tbr, nil
+	return params, nil
 }
 
-func LoadIntoEnv(in []Param) error {
-	for _, v := range in {
-		if err := os.Setenv(v.Name, v.Value); err != nil {
+// LoadIntoEnv sets each param as an environment variable, overwriting any
+// existing value.
+func LoadIntoEnv(params map[string]string) error {
+	for k, v := range params {
+		if err := os.Setenv(k, v); err != nil {
 			return fmt.Errorf("os: setenv: %w", err)
 		}
 	}
