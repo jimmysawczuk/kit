@@ -147,8 +147,8 @@ Middleware uses standard `func(http.Handler) http.Handler` signature and is comp
   - `LoadIntoEnv()` loads parameters into environment variables, overwriting existing values
 
 - **cloudwatchlog**: Builds an `io.WriteCloser` that ships log lines to CloudWatch Logs (e.g. via `zerolog.MultiLevelWriter`), wrapping `github.com/lzap/cloudwatchwriter2`
-  - `NewWriter(ctx, logGroup, streamName, ...Option)` - stream naming is the caller's concern, not baked into the constructor
-  - `WithBatchInterval()`, `WithConfigOptions()` functional options
+  - `NewWriter(ctx, client, logGroup, streamName, ...Option)` - caller supplies the CloudWatch Logs client (e.g. from a shared `aws.Config`); stream naming is the caller's concern, not baked into the constructor
+  - `WithBatchInterval()` functional option
   - `FlyStreamName()` - Fly machine ID, falling back to hostname+ulid off Fly
   - Uses aws-sdk-go-v2 (cloudwatchwriter2's requirement)
 
