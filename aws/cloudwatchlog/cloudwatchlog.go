@@ -41,8 +41,13 @@ func WithConfigOptions(opts ...func(*awsconfig.LoadOptions) error) Option {
 
 // NewWriter builds an io.WriteCloser that ships log lines to logGroup under
 // logStreamName, using the ambient AWS config (env vars, shared config/
-// credentials files, EC2/ECS/Fly OIDC role, etc). The log group must already
-// exist; the log stream is created if it's missing.
+// credentials files, EC2/ECS/Fly OIDC role, etc). The log group and stream
+// are created if they're missing, which requires logs:CreateLogGroup and
+// logs:CreateLogStream permissions.
+//
+// ctx bounds AWS config loading only. Its values are passed through, but
+// its cancellation is not: the writer's background flushing runs until
+// Close is called.
 //
 // Callers on Fly can name the stream with FlyStreamName; other callers
 // should pass a name that's unique enough to avoid two processes writing to
@@ -60,7 +65,9 @@ func NewWriter(ctx context.Context, logGroup, streamName string, opts ...Option)
 
 	client := awscloudwatchlogs.NewFromConfig(awsCfg)
 
-	writer, err := cloudwatchwriter2.NewWithClientContext(ctx, client, s.batchInterval, logGroup, streamName)
+	// cloudwatchwriter2 uses this ctx for its background flush goroutine and
+	// every PutLogEvents call, so a cancelled ctx would silently stop shipping.
+	writer, err := cloudwatchwriter2.NewWithClientContext(context.WithoutCancel(ctx), client, s.batchInterval, logGroup, streamName)
 	if err != nil {
 		return nil, fmt.Errorf("new cloudwatch writer: %w", err)
 	}
