@@ -143,14 +143,14 @@ Middleware uses standard `func(http.Handler) http.Handler` signature and is comp
   - Handles base64 encoding/decoding for binary responses
 
 - **ssm**: AWS Systems Manager Parameter Store integration
-  - `GetParametersFromPath()` with automatic pagination
-  - `LoadIntoEnv()` loads parameters into environment variables
+  - `GetParametersFromPath(ctx, client, path)` returns `map[string]string` keyed by name relative to `path`, with automatic pagination; caller supplies the `ssm.GetParametersByPathAPIClient`
+  - `LoadIntoEnv()` loads parameters into environment variables, overwriting existing values
 
 - **cloudwatchlog**: Builds an `io.WriteCloser` that ships log lines to CloudWatch Logs (e.g. via `zerolog.MultiLevelWriter`), wrapping `github.com/lzap/cloudwatchwriter2`
   - `NewWriter(ctx, logGroup, streamName, ...Option)` - stream naming is the caller's concern, not baked into the constructor
   - `WithBatchInterval()`, `WithConfigOptions()` functional options
   - `FlyStreamName()` - Fly machine ID, falling back to hostname+ulid off Fly
-  - Uses aws-sdk-go-v2 (cloudwatchwriter2's requirement), unlike ssm's v1 SDK
+  - Uses aws-sdk-go-v2 (cloudwatchwriter2's requirement)
 
 ## Testing
 
