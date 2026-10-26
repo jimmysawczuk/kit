@@ -67,9 +67,16 @@ func NewWriter(ctx context.Context, client cloudwatchwriter2.CloudWatchLogsClien
 		opt(&s)
 	}
 
+	// Checked here too so a bad option fails before, and isn't blamed on, the
+	// token wait.
+	if s.batchInterval < cloudwatchwriter2.MinBatchInterval {
+		return nil, fmt.Errorf("new cloudwatch writer: %w", cloudwatchwriter2.ErrBatchIntervalTooSmall)
+	}
+
+	var waited time.Duration
 	tokenOK := true
 	if s.tokenWait > 0 {
-		_, tokenOK = webidentity.WaitForToken(ctx, s.tokenWait)
+		waited, tokenOK = webidentity.WaitForToken(ctx, s.tokenWait)
 	}
 
 	// cloudwatchwriter2 uses this ctx for its background flush goroutine and
@@ -77,7 +84,7 @@ func NewWriter(ctx context.Context, client cloudwatchwriter2.CloudWatchLogsClien
 	writer, err := cloudwatchwriter2.NewWithClientContext(context.WithoutCancel(ctx), client, s.batchInterval, logGroup, streamName)
 	if err != nil {
 		if !tokenOK {
-			return nil, fmt.Errorf("new cloudwatch writer (web identity token file %s missing after %s): %w", os.Getenv(webidentity.TokenFileEnv), s.tokenWait, err)
+			return nil, fmt.Errorf("new cloudwatch writer (web identity token file %s not ready after waiting %s): %w", os.Getenv(webidentity.TokenFileEnv), waited.Round(time.Millisecond), err)
 		}
 		return nil, fmt.Errorf("new cloudwatch writer: %w", err)
 	}
