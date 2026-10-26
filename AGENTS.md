@@ -148,9 +148,12 @@ Middleware uses standard `func(http.Handler) http.Handler` signature and is comp
 
 - **cloudwatchlog**: Builds an `io.WriteCloser` that ships log lines to CloudWatch Logs (e.g. via `zerolog.MultiLevelWriter`), wrapping `github.com/lzap/cloudwatchwriter2`
   - `NewWriter(ctx, client, logGroup, streamName, ...Option)` - caller supplies the CloudWatch Logs client (e.g. from a shared `aws.Config`); stream naming is the caller's concern, not baked into the constructor
-  - `WithBatchInterval()` functional option
+  - `WithBatchInterval()` and `WithTokenWait()` functional options
+  - Waits up to `DefaultTokenWait` (5s) for `AWS_WEB_IDENTITY_TOKEN_FILE` before its first AWS call; relies on the SDK reading the token file lazily
   - `FlyStreamName()` - Fly machine ID, falling back to hostname+ulid off Fly
   - Uses aws-sdk-go-v2 (cloudwatchwriter2's requirement)
+
+- **webidentity**: `WaitForToken(ctx, timeout) (waited, ok)` polls for `AWS_WEB_IDENTITY_TOKEN_FILE` to exist; no-op if unset or present. Works around Fly init racing `/.fly/oidc_token`; call before `config.LoadDefaultConfig`
 
 ## Testing
 
