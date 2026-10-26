@@ -45,6 +45,32 @@ func TestWaitForToken(t *testing.T) {
 		assert.Less(t, waited, 5*time.Second)
 	})
 
+	t.Run("waits for an empty file to get content", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, nil, 0o600))
+		t.Setenv(TokenFileEnv, path)
+
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			_ = os.WriteFile(path, []byte("jwt"), 0o600)
+		}()
+
+		waited, ok := WaitForToken(context.Background(), 5*time.Second)
+		assert.True(t, ok)
+		assert.GreaterOrEqual(t, waited, 250*time.Millisecond)
+	})
+
+	t.Run("returns immediately on a stat error other than not-exist", func(t *testing.T) {
+		file := filepath.Join(t.TempDir(), "file")
+		require.NoError(t, os.WriteFile(file, []byte("x"), 0o600))
+		// A path under a regular file fails with ENOTDIR, not ENOENT.
+		t.Setenv(TokenFileEnv, filepath.Join(file, "token"))
+
+		waited, ok := WaitForToken(context.Background(), time.Minute)
+		assert.False(t, ok)
+		assert.Zero(t, waited)
+	})
+
 	t.Run("gives up after timeout", func(t *testing.T) {
 		t.Setenv(TokenFileEnv, filepath.Join(t.TempDir(), "token"))
 
@@ -61,6 +87,6 @@ func TestWaitForToken(t *testing.T) {
 
 		waited, ok := WaitForToken(ctx, time.Minute)
 		assert.False(t, ok)
-		assert.Less(t, waited, time.Minute)
+		assert.Less(t, waited, time.Second)
 	})
 }
