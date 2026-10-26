@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -61,12 +62,16 @@ func TestWaitForToken(t *testing.T) {
 	})
 
 	t.Run("returns immediately on a stat error other than not-exist", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("windows reports a path under a regular file as not-exist")
+		}
+
 		file := filepath.Join(t.TempDir(), "file")
 		require.NoError(t, os.WriteFile(file, []byte("x"), 0o600))
 		// A path under a regular file fails with ENOTDIR, not ENOENT.
 		t.Setenv(TokenFileEnv, filepath.Join(file, "token"))
 
-		waited, ok := WaitForToken(context.Background(), time.Minute)
+		waited, ok := WaitForToken(context.Background(), 5*time.Second)
 		assert.False(t, ok)
 		assert.Zero(t, waited)
 	})
