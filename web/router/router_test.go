@@ -177,3 +177,23 @@ func TestNestedRouteParamsWithMiddleware(t *testing.T) {
 		t.Errorf("expected recipeID to be 'recipe-789', got '%s'", capturedRecipeID)
 	}
 }
+
+func TestQuery(t *testing.T) {
+	r := router.New()
+
+	r.Queryf("/search", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(router.MethodQuery, "/search", nil))
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200 for QUERY, got %d", rec.Code)
+	}
+
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/search", nil))
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected status 405 for GET, got %d", rec.Code)
+	}
+}
