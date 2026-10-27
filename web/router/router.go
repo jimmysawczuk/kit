@@ -8,6 +8,9 @@ import (
 
 type Middleware = func(http.Handler) http.Handler
 
+// MethodQuery is the HTTP QUERY method (RFC 10008), which net/http doesn't define yet.
+const MethodQuery = "QUERY"
+
 type Module interface {
 	Route(Router)
 }
@@ -32,6 +35,8 @@ type Router interface {
 	Postf(string, http.HandlerFunc, ...Middleware)
 	Put(string, http.Handler, ...Middleware)
 	Putf(string, http.HandlerFunc, ...Middleware)
+	Query(string, http.Handler, ...Middleware)
+	Queryf(string, http.HandlerFunc, ...Middleware)
 	Trace(string, http.Handler, ...Middleware)
 	Tracef(string, http.HandlerFunc, ...Middleware)
 
@@ -140,6 +145,14 @@ func (ro chiRouter) Put(path string, handler http.Handler, mws ...Middleware) {
 
 func (ro chiRouter) Putf(path string, handler http.HandlerFunc, mws ...Middleware) {
 	ro.Method(http.MethodPut, path, handler, mws...)
+}
+
+func (ro chiRouter) Query(path string, handler http.Handler, mws ...Middleware) {
+	ro.Method(MethodQuery, path, handler, mws...)
+}
+
+func (ro chiRouter) Queryf(path string, handler http.HandlerFunc, mws ...Middleware) {
+	ro.Method(MethodQuery, path, handler, mws...)
 }
 
 func (ro chiRouter) Trace(path string, handler http.Handler, mws ...Middleware) {
